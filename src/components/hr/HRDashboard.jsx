@@ -17,7 +17,7 @@ const sidebarItems = [
 
 export default function HRDashboard() {
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="h-screen flex flex-col">
             <Navbar
                 title="HR Program Owner"
                 userName="Neha Kapoor"

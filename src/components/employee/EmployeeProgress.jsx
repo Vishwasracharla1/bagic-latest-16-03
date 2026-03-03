@@ -48,7 +48,7 @@ export default function EmployeeProgress() {
                     <i className="fas fa-chart-line text-primary-blue text-xl"></i>
                     Progress Dashboard
                 </h1>
-                <p className="text-gray-400 text-sm font-medium tracking-wide">Track your growth journey</p>
+                <p className="text-gray-400 text-sm tracking-wide">Track your growth journey</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -75,7 +75,7 @@ export default function EmployeeProgress() {
                                 <div key={goal.id} className="pb-4 last:pb-0 border-b border-gray-50 last:border-b-0">
                                     <div className="flex items-center justify-between mb-2">
                                         <h4 className="text-[13px] font-bold text-gray-800 tracking-tight">{goal.title}</h4>
-                                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${goal.status === 'on-track' || goal.status === 'completed' ? 'bg-success/10 text-success' :
+                                        <span className={`text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider ${goal.status === 'on-track' || goal.status === 'completed' ? 'bg-success/10 text-success' :
                                             goal.status === 'at-risk' ? 'bg-danger/10 text-danger' :
                                                 'bg-warning/10 text-warning'
                                             }`}>{goal.status}</span>
@@ -87,7 +87,7 @@ export default function EmployeeProgress() {
                                             style={{ width: `${goal.progress}%` }}
                                         ></div>
                                     </div>
-                                    <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                    <div className="flex items-center justify-between text-[10px] text-gray-400 uppercase tracking-wider">
                                         <span>{goal.progress}% complete</span>
                                         <span>Due: {new Date(goal.targetDate).toLocaleDateString()}</span>
                                     </div>
@@ -97,7 +97,7 @@ export default function EmployeeProgress() {
                                             {goal.milestones.map((m, i) => (
                                                 <div key={i} className="flex items-center gap-2 text-[11px] p-1.5 bg-gray-50/50 rounded-lg border border-gray-100/50">
                                                     <i className={`fas fa-${m.completed ? 'check-circle text-success' : 'circle text-gray-200'} text-[10px]`}></i>
-                                                    <span className={`font-medium ${m.completed ? 'line-through text-gray-400' : 'text-gray-600'}`}>{m.title}</span>
+                                                    <span className={`${m.completed ? 'line-through text-gray-400' : 'text-gray-600'}`}>{m.title}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -129,9 +129,9 @@ export default function EmployeeProgress() {
                                     <div>
                                         <div className="font-bold text-[12px] text-gray-800 flex justify-between gap-2 overflow-hidden">
                                             <span className="truncate">{achievement.title}</span>
-                                            <span className="text-[9px] text-gray-400 font-bold uppercase mt-0.5 flex-shrink-0">{achievement.date}</span>
+                                            <span className="text-[9px] text-gray-400 uppercase mt-0.5 flex-shrink-0">{achievement.date}</span>
                                         </div>
-                                        <div className="text-[10px] text-gray-500 font-medium mt-0.5">{achievement.desc}</div>
+                                        <div className="text-[10px] text-gray-500 mt-0.5">{achievement.desc}</div>
                                     </div>
                                 </div>
                             ))}
@@ -147,7 +147,7 @@ export default function EmployeeProgress() {
                         <div className="p-4 space-y-4">
                             {['Feedback', 'Delegation', 'Conflict Res.', 'EQ'].map((skill, i) => (
                                 <div key={i} className="last:mb-0">
-                                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                                    <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-gray-500 mb-1.5">
                                         <span>{skill}</span>
                                         <span className="text-gray-800">{[82, 65, 45, 72][i]}%</span>
                                     </div>

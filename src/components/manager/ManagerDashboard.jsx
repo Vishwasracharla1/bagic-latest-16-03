@@ -15,7 +15,7 @@ const sidebarItems = [
 
 export default function ManagerDashboard() {
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="h-screen flex flex-col">
             <Navbar
                 title="Manager Dashboard"
                 userName="Priya Mehta"

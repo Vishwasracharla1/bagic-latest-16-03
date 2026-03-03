@@ -17,7 +17,7 @@ const sidebarItems = [
 
 export default function ComplianceDashboard() {
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="h-screen flex flex-col">
             <Navbar
                 title="Compliance Dashboard"
                 userName="Arjun Patel"

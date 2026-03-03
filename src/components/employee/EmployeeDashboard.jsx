@@ -17,7 +17,7 @@ const sidebarItems = [
 
 export default function EmployeeDashboard() {
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="h-screen flex flex-col">
             <Navbar
                 title="Employee Dashboard"
                 userName="Rahul Sharma"
