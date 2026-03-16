@@ -18,10 +18,6 @@ export default function FloatingChatbot() {
     const [isIdDropdownOpen, setIsIdDropdownOpen] = useState(false)
     const [isLoadingEmployees, setIsLoadingEmployees] = useState(false)
 
-    // Don't show chatbot on login page
-    if (location.pathname === '/login') {
-        return null
-    }
 
     const [messages, setMessages] = useState([
         {
@@ -233,6 +229,11 @@ export default function FloatingChatbot() {
                 setIsTyping(false)
             }, 600)
         }
+    }
+
+    // Don't show chatbot on login page
+    if (location.pathname === '/login') {
+        return null
     }
 
     return (
