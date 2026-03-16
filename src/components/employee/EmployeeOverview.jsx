@@ -17,16 +17,17 @@ export default function EmployeeOverview() {
     const [activeGoals, setActiveGoals] = useState([])
     const [learningRecommendations, setLearningRecommendations] = useState([])
     const [nudges, setNudges] = useState([])
-    const initialId = localStorage.getItem('active_employee_id') || localStorage.getItem('user_id')
+    const role = localStorage.getItem('user_role')
+    const initialId = localStorage.getItem('active_employee_id') || (role !== 'admin' ? localStorage.getItem('user_id') : '')
     const [activeEmployeeId, setActiveEmployeeId] = useState(initialId)
     const initialName = localStorage.getItem('active_employee_name') || localStorage.getItem('user_name') || employee.name
     const [selectedEmployeeName, setSelectedEmployeeName] = useState(initialName)
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-    const role = localStorage.getItem('user_role')
     const currentName = localStorage.getItem('user_name') || employee.name
 
     useEffect(() => {
         const fetchDashboardData = async () => {
+            if (!activeEmployeeId || activeEmployeeId === 'admin') return;
             try {
                 const apiUrl = import.meta.env.VITE_COHORTS_API_URL;
                 const token = import.meta.env.VITE_COHORTS_AUTH_TOKEN;
@@ -157,22 +158,84 @@ export default function EmployeeOverview() {
                     setActiveGoals(goalsList);
                 }
 
-                // Fetch Recommended Learning Content
-                const learningResponse = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        type: "TIDB",
-                        definition: `SELECT '${activeEmployeeId}' AS employee_id, ci.content_id, ci.title, ci.content_type, ci.duration_minutes, ci.primary_topic, ci.difficulty_level, IFNULL(cu.completion_pct, 0) AS completion_pct, cu.rating FROM t_69a8310842abf6674cbcb943_t g JOIN t_69a81b1242abf6674cbcb8f1_t ci ON g.category = ci.primary_topic LEFT JOIN t_69a81bfd42abf6674cbcb8fc_t cu ON cu.employee_id = '${activeEmployeeId}' AND cu.content_id = ci.content_id WHERE g.employee_id = '${activeEmployeeId}' AND g.status <> 'completed' AND g.status <> 'cancelled' AND ci.is_active = 1 AND (cu.completion_pct IS NULL OR cu.completion_pct < 100) LIMIT 2;`
-                    })
-                });
+                // Fetch Recommended Learning Content IDs from Chatbot API
+                let recommendedIds = [];
+                try {
+                    const recommendRes = await fetch(`https://ig.gov-cloud.ai/chatbot-ai-coach/recommend-content/${activeEmployeeId}`);
+                    if (recommendRes.ok) {
+                        const recommendData = await recommendRes.json();
+                        recommendedIds = recommendData.recommended_content || [];
+                    }
+                } catch (err) {
+                    console.error("Error fetching recommended IDs:", err);
+                }
 
-                if (learningResponse.ok) {
-                    const learningData = await learningResponse.json();
-                    if (learningData.data && Array.isArray(learningData.data)) {
-                        setLearningRecommendations(learningData.data);
-                    } else {
-                        setLearningRecommendations([]);
+                if (recommendedIds.length > 0) {
+                    // Extract IDs from 'content_items_C-XXX' format to ['C-XXX', ...]
+                    const cleanIdList = recommendedIds.map(id => id.replace('content_items_', ''));
+                    
+                    const learningResponse = await fetch('https://igs.gov-cloud.ai/pi-entity-instances-service/v2.0/schemas/69a81b1242abf6674cbcb8f1/instances/list?size=1000', {
+                        method: 'POST',
+                        headers: {
+                            'accept': 'application/json, text/plain, */*',
+                            'authorization': `Bearer ${token}`, // Using token from cohorts/entities as applicable
+                            'content-type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            "dbType": "TIDB",
+                            "conditionalFilter": {
+                                "logicalOperator": "OR",
+                                "conditions": [
+                                    {
+                                        "field": "content_id",
+                                        "operator": "IN",
+                                        "value": cleanIdList
+                                    }
+                                ]
+                            }
+                        })
+                    });
+
+                    if (learningResponse.ok) {
+                        const responseData = await learningResponse.json();
+                        let contentItems = [];
+                        if (Array.isArray(responseData)) {
+                            contentItems = responseData;
+                        } else if (responseData.data && Array.isArray(responseData.data)) {
+                            contentItems = responseData.data;
+                        } else if (responseData.content && Array.isArray(responseData.content)) {
+                            contentItems = responseData.content;
+                        }
+
+                        if (contentItems.length > 0) {
+                            // Map to expected UI format
+                            const mappedContent = contentItems.map(item => ({
+                                ...item,
+                                employee_id: activeEmployeeId,
+                                completion_pct: 0,
+                                rating: null
+                            }));
+                            setLearningRecommendations(mappedContent);
+                        }
+                    }
+                } else {
+                    // Fallback to original logic if no recommendations from AI
+                    const learningResponse = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            type: "TIDB",
+                            definition: `SELECT '${activeEmployeeId}' AS employee_id, ci.content_id, ci.title, ci.content_type, ci.duration_minutes, ci.primary_topic, ci.difficulty_level, IFNULL(cu.completion_pct, 0) AS completion_pct, cu.rating FROM t_69a8310842abf6674cbcb943_t g JOIN t_69a81b1242abf6674cbcb8f1_t ci ON g.category = ci.primary_topic LEFT JOIN t_69a81bfd42abf6674cbcb8fc_t cu ON cu.employee_id = '${activeEmployeeId}' AND cu.content_id = ci.content_id WHERE g.employee_id = '${activeEmployeeId}' AND g.status <> 'completed' AND g.status <> 'cancelled' AND ci.is_active = 1 AND (cu.completion_pct IS NULL OR cu.completion_pct < 100) LIMIT 2;`
+                        })
+                    });
+
+                    if (learningResponse.ok) {
+                        const learningData = await learningResponse.json();
+                        if (learningData.data && Array.isArray(learningData.data)) {
+                            setLearningRecommendations(learningData.data);
+                        } else {
+                            setLearningRecommendations([]);
+                        }
                     }
                 }
 
@@ -407,7 +470,7 @@ export default function EmployeeOverview() {
                                 learningRecommendations.map((content, idx) => (
                                     <div 
                                         key={idx} 
-                                        onClick={() => navigate('/employee/content')}
+                                        onClick={() => navigate('/employee/chat')}
                                         className="bg-gray-50/30 border border-gray-100 rounded-xl p-3 hover:border-primary-blue/30 transition-all group cursor-pointer"
                                     >
                                         <div className="flex items-center gap-2 mb-2">

@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getContentIcon } from '../../utils/helpers'
 
 export default function EmployeeContent() {
+    const navigate = useNavigate()
     const [contentList, setContentList] = useState([])
     const [isLoading, setIsLoading] = useState(true)
     const [allEmployees, setAllEmployees] = useState([])
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-    const initialId = localStorage.getItem('active_employee_id') || localStorage.getItem('user_id')
+    const role = localStorage.getItem('user_role')
+    const initialId = localStorage.getItem('active_employee_id') || (role !== 'admin' ? localStorage.getItem('user_id') : '')
     const [activeEmployeeId, setActiveEmployeeId] = useState(initialId)
     const initialName = localStorage.getItem('active_employee_name') || localStorage.getItem('user_name') || ''
     const [selectedEmployeeName, setSelectedEmployeeName] = useState(initialName)
-    const role = localStorage.getItem('user_role')
 
     useEffect(() => {
         const fetchContentFeed = async () => {
+            if (!activeEmployeeId || activeEmployeeId === 'admin') return;
             setIsLoading(true);
             try {
                 const apiUrl = import.meta.env.VITE_COHORTS_API_URL;
@@ -24,27 +27,91 @@ export default function EmployeeContent() {
                     return;
                 }
 
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'accept': 'application/json',
-                        'authorization': `Bearer ${token}`,
-                        'content-type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        type: "TIDB",
-                        // definition: `SELECT '${activeEmployeeId}' AS employee_id, ci.content_id, ci.title, ci.content_type, ci.duration_minutes, ci.primary_topic, ci.difficulty_level, ci.skills_tags, ci.business_unit_tags, IFNULL(cu.completion_pct, 0) AS completion_pct, cu.rating, CASE WHEN IFNULL(cu.completion_pct, 0) >= 100 THEN 'COMPLETED' WHEN cu.content_id IS NOT NULL THEN 'CONTINUE' ELSE 'START NOW' END AS action_label, CASE WHEN g.category = ci.primary_topic THEN 92 ELSE 75 END AS match_pct FROM t_69a81b1242abf6674cbcb8f1_t ci JOIN t_69a8310842abf6674cbcb943_t g ON g.employee_id = '${activeEmployeeId}' AND g.category = ci.primary_topic LEFT JOIN t_69a81bfd42abf6674cbcb8fc_t cu ON cu.employee_id = '${activeEmployeeId}' AND cu.content_id = ci.content_id WHERE ci.is_active = 1 ORDER BY CASE WHEN IFNULL(cu.completion_pct, 0) >= 100 THEN 3 WHEN cu.content_id IS NOT NULL THEN 1 ELSE 2 END, match_pct DESC, ci.duration_minutes ASC, ci.title ASC ;`
-                        definition: `SELECT '${activeEmployeeId}' AS employee_id, ci.content_id, ci.title, ci.content_type, ci.duration_minutes, ci.primary_topic, ci.difficulty_level, ci.skills_tags, ci.business_unit_tags, IFNULL(cu.completion_pct, 0) AS completion_pct, cu.rating, CASE WHEN IFNULL(cu.completion_pct, 0) >= 100 THEN 'COMPLETED' WHEN cu.content_id IS NOT NULL THEN 'CONTINUE' ELSE 'START NOW' END AS action_label, 92 AS match_pct FROM t_69a81b1242abf6674cbcb8f1_t ci LEFT JOIN t_69a81bfd42abf6674cbcb8fc_t cu ON cu.employee_id = '${activeEmployeeId}' AND cu.content_id = ci.content_id WHERE ci.is_active = 1 AND EXISTS ( SELECT 1 FROM t_69a8310842abf6674cbcb943_t g WHERE g.employee_id = '${activeEmployeeId}' AND g.category = ci.primary_topic ) ORDER BY CASE WHEN IFNULL(cu.completion_pct, 0) >= 100 THEN 3 WHEN cu.content_id IS NOT NULL THEN 1 ELSE 2 END, ci.duration_minutes ASC, ci.title ASC;`
-                        
-                    })
-                });
+                const headers = {
+                    'accept': 'application/json',
+                    'authorization': `Bearer ${token}`,
+                    'content-type': 'application/json'
+                };
 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.data && Array.isArray(data.data)) {
-                        setContentList(data.data);
-                    } else {
-                        setContentList([]);
+                // 1. Fetch Recommended Content IDs from Chatbot API
+                let recommendedIds = [];
+                try {
+                    const recommendRes = await fetch(`https://ig.gov-cloud.ai/chatbot-ai-coach/recommend-content/${activeEmployeeId}`);
+                    if (recommendRes.ok) {
+                        const recommendData = await recommendRes.json();
+                        recommendedIds = recommendData.recommended_content || [];
+                    }
+                } catch (err) {
+                    console.error("Error fetching recommended IDs:", err);
+                }
+
+                if (recommendedIds.length > 0) {
+                    // Extract IDs from 'content_items_C-XXX' format to ['C-XXX', ...]
+                    const cleanIdList = recommendedIds.map(id => id.replace('content_items_', ''));
+                    
+                    const response = await fetch('https://igs.gov-cloud.ai/pi-entity-instances-service/v2.0/schemas/69a81b1242abf6674cbcb8f1/instances/list?size=1000', {
+                        method: 'POST',
+                        headers: {
+                            'accept': 'application/json, text/plain, */*',
+                            'authorization': `Bearer ${token}`,
+                            'content-type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            "dbType": "TIDB",
+                            "conditionalFilter": {
+                                "logicalOperator": "OR",
+                                "conditions": [
+                                    {
+                                        "field": "content_id",
+                                        "operator": "IN",
+                                        "value": cleanIdList
+                                    }
+                                ]
+                            }
+                        })
+                    });
+
+                    if (response.ok) {
+                        const responseData = await response.json();
+                        let contentItems = [];
+                        if (Array.isArray(responseData)) {
+                            contentItems = responseData;
+                        } else if (responseData.data && Array.isArray(responseData.data)) {
+                            contentItems = responseData.data;
+                        } else if (responseData.content && Array.isArray(responseData.content)) {
+                            contentItems = responseData.content;
+                        }
+
+                        if (contentItems.length > 0) {
+                            // Map to expected UI format
+                            const mappedContent = contentItems.map(item => ({
+                                ...item,
+                                employee_id: activeEmployeeId,
+                                match_pct: 95,
+                                completion_pct: 0,
+                                action_label: 'START NOW'
+                            }));
+                            setContentList(mappedContent);
+                        }
+                    }
+                } else {
+                    // Fallback to original logic
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            type: "TIDB",
+                            definition: `SELECT '${activeEmployeeId}' AS employee_id, ci.content_id, ci.title, ci.content_type, ci.duration_minutes, ci.primary_topic, ci.difficulty_level, ci.skills_tags, ci.business_unit_tags, IFNULL(cu.completion_pct, 0) AS completion_pct, cu.rating, CASE WHEN IFNULL(cu.completion_pct, 0) >= 100 THEN 'COMPLETED' WHEN cu.content_id IS NOT NULL THEN 'CONTINUE' ELSE 'START NOW' END AS action_label, 92 AS match_pct FROM t_69a81b1242abf6674cbcb8f1_t ci LEFT JOIN t_69a81bfd42abf6674cbcb8fc_t cu ON cu.employee_id = '${activeEmployeeId}' AND cu.content_id = ci.content_id WHERE ci.is_active = 1 AND EXISTS ( SELECT 1 FROM t_69a8310842abf6674cbcb943_t g WHERE g.employee_id = '${activeEmployeeId}' AND g.category = ci.primary_topic ) ORDER BY CASE WHEN IFNULL(cu.completion_pct, 0) >= 100 THEN 3 WHEN cu.content_id IS NOT NULL THEN 1 ELSE 2 END, ci.duration_minutes ASC, ci.title ASC;`
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.data && Array.isArray(data.data)) {
+                            setContentList(data.data);
+                        } else {
+                            setContentList([]);
+                        }
                     }
                 }
             } catch (error) {
@@ -54,7 +121,7 @@ export default function EmployeeContent() {
             }
         };
 
-        if (activeEmployeeId) {
+        if (activeEmployeeId && activeEmployeeId !== 'admin') {
             fetchContentFeed();
         }
     }, [activeEmployeeId]);
@@ -234,7 +301,10 @@ export default function EmployeeContent() {
                                     </div>
 
                                     <div className="flex gap-2">
-                                        <button className={`flex-1 ${content.action_label === 'COMPLETED' ? 'bg-gray-400' : 'bg-primary-blue'} text-white border-none py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:opacity-90 transition-all shadow-sm`}>
+                                        <button 
+                                            onClick={() => navigate('/employee/chat')}
+                                            className={`flex-1 ${content.action_label === 'COMPLETED' ? 'bg-gray-400' : 'bg-primary-blue'} text-white border-none py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:opacity-90 transition-all shadow-sm`}
+                                        >
                                             {content.action_label}
                                         </button>
                                         <button className="bg-gray-50 text-gray-400 border border-gray-100 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer hover:bg-gray-100 hover:text-gray-600 transition-all">
