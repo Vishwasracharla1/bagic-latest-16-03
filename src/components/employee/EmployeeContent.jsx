@@ -302,7 +302,7 @@ export default function EmployeeContent() {
 
                                     <div className="flex gap-2">
                                         <button 
-                                            onClick={() => navigate('/employee/chat')}
+                                            onClick={() => navigate('/employee/chat', { state: { autoMessage: content.title } })}
                                             className={`flex-1 ${content.action_label === 'COMPLETED' ? 'bg-gray-400' : 'bg-primary-blue'} text-white border-none py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:opacity-90 transition-all shadow-sm`}
                                         >
                                             {content.action_label}

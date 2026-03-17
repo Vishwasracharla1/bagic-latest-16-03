@@ -242,7 +242,7 @@ export default function ManagerAnalytics() {
                 barWidth: '60%',
                 barGap: '-100%',
                 itemStyle: {
-                    color: values[idx] >= 70 ? '#4CAF50' : values[idx] >= 40 ? '#FFC107' : '#F44336',
+                    color: palette[idx % palette.length],
                     borderRadius: [0, 4, 4, 0]
                 },
                 label: {
