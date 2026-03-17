@@ -51,7 +51,7 @@ export default function ManagerAnalytics() {
                         },
                         body: JSON.stringify({
                             type: "TIDB",
-                            definition: `SELECT s.primary_topic, ROUND( ( IFNULL(AVG(CASE WHEN s.started_at >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY) THEN s.sentiment_score END), 0) - IFNULL(AVG(CASE WHEN s.started_at >= DATE_SUB(CURRENT_DATE, INTERVAL 60 DAY) AND s.started_at < DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY) THEN s.sentiment_score END), 0) ) * 100, 0 ) AS improvement_pct FROM t_69a82d5742abf6674cbcb935_t s JOIN t_69a82b4442abf6674cbcb928_t e ON e.employee_id = s.employee_id WHERE e.manager_id = '${selectedManager}' AND e.employment_status <> 'resigned' GROUP BY s.primary_topic ORDER BY improvement_pct DESC;`
+                            definition: `SELECT s.primary_topic, ROUND( ( IFNULL(AVG(CASE WHEN SUBSTR(s.started_at, 1, 4) = '2025' THEN s.sentiment_score END), 0) - IFNULL(AVG(CASE WHEN SUBSTR(s.started_at, 1, 4) = '2024' THEN s.sentiment_score END), 0) ) * 100, 0 ) AS improvement_pct FROM t_69a82d5742abf6674cbcb935_t s JOIN t_69a82b4442abf6674cbcb928_t e ON e.employee_id = s.employee_id WHERE e.manager_id = '${selectedManager}' AND e.employment_status <> 'resigned' AND SUBSTR(s.started_at, 1, 4) IN ('2024', '2025') GROUP BY s.primary_topic ORDER BY improvement_pct DESC;`
                         })
                     }),
                     fetch('https://ig.gov-cloud.ai/pi-cohorts-service-dbaas/v1.0/cohorts/adhoc', {
@@ -498,7 +498,16 @@ export default function ManagerAnalytics() {
 
                     const icon = iconMap[topic.primary_topic] || iconMap.default;
                     const label = labelMap[topic.primary_topic] || topic.primary_topic.replace('_', ' ');
-                    const value = `${topic.improvement_pct >= 0 ? '+' : ''}${topic.improvement_pct}%`;
+                    const improvement = topic.improvement_pct || 0;
+                    
+                    const displayValue = (
+                        <div className="flex items-center gap-1">
+                            <i className={`fas fa-arrow-${improvement >= 0 ? 'up text-success' : 'down text-danger'} text-xs`}></i>
+                            <span className={improvement >= 0 ? 'text-gray-900' : 'text-gray-900'}>
+                                {Math.abs(improvement)}%
+                            </span>
+                        </div>
+                    );
 
                     return (
                         <div key={i} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -507,7 +516,7 @@ export default function ManagerAnalytics() {
                                     <i className={`fas fa-${icon}`}></i>
                                 </div>
                                 <div>
-                                    <div className="text-xl font-bold text-gray-900 leading-none mb-1">{value}</div>
+                                    <div className="text-xl font-bold leading-none mb-1">{displayValue}</div>
                                     <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{label}</div>
                                 </div>
                             </div>

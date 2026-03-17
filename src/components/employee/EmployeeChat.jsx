@@ -159,15 +159,19 @@ export default function EmployeeChat() {
     }
 
     // Helper to format AI responses (bold and bullet points)
-    const FormattedMessage = ({ text }) => {
+    const FormattedMessage = ({ text, isUser }) => {
         if (!text) return null;
+
+        const textColor = isUser ? 'text-white' : 'text-gray-700';
+        const strongColor = isUser ? 'text-white font-bold underline decoration-white/30' : 'text-gray-900 font-bold';
+        const bulletColor = isUser ? 'bg-white/60' : 'bg-primary-blue';
 
         // First handle bold **text**
         const parseBold = (content) => {
             const parts = content.split(/(\*\*.*?\*\*)/g);
             return parts.map((part, i) => {
                 if (part.startsWith('**') && part.endsWith('**')) {
-                    return <strong key={i} className="font-bold text-gray-900">{part.slice(2, -2)}</strong>;
+                    return <strong key={i} className={strongColor}>{part.slice(2, -2)}</strong>;
                 }
                 return part;
             });
@@ -186,7 +190,7 @@ export default function EmployeeChat() {
         const lines = processedContent.split('\n');
         
         return (
-            <div className="space-y-3">
+            <div className={`space-y-3 ${textColor}`}>
                 {lines.map((line, idx) => {
                     const trimmed = line.trim();
                     if (!trimmed) return null;
@@ -204,16 +208,16 @@ export default function EmployeeChat() {
                         return (
                             <div key={idx} className="flex gap-3 ml-1">
                                 {isBullet ? (
-                                    <div className="min-w-[6px] h-[6px] rounded-full bg-primary-blue mt-2.5 flex-shrink-0 shadow-[0_0_8px_rgba(var(--primary-blue-rgb),0.5)]"></div>
+                                    <div className={`min-w-[6px] h-[6px] rounded-full ${bulletColor} mt-2.5 flex-shrink-0 shadow-[0_0_8px_rgba(255,255,255,0.3)]`}></div>
                                 ) : (
-                                    <span className="text-[11px] font-bold text-primary-blue mt-1.5 min-w-[15px]">{trimmed.match(/^\d+\./)[0]}</span>
+                                    <span className={`text-[11px] font-bold ${isUser ? 'text-white/80' : 'text-primary-blue'} mt-1.5 min-w-[15px]`}>{trimmed.match(/^\d+\./)[0]}</span>
                                 )}
-                                <span className="flex-1 text-gray-700 leading-relaxed">{parseBold(content)}</span>
+                                <span className={`flex-1 leading-relaxed ${isUser ? 'text-white/90' : ''}`}>{parseBold(content)}</span>
                             </div>
                         );
                     }
 
-                    return <p key={idx} className="m-0 leading-relaxed text-gray-700 font-medium">{parseBold(trimmed)}</p>;
+                    return <p key={idx} className={`m-0 leading-relaxed font-medium ${isUser ? 'text-white' : ''}`}>{parseBold(trimmed)}</p>;
                 })}
             </div>
         );
@@ -389,7 +393,7 @@ export default function EmployeeChat() {
                                         <i className="fas fa-volume-up"></i>
                                     </button>
                                 )}
-                                <FormattedMessage text={msg.message} />
+                                <FormattedMessage text={msg.message} isUser={msg.sender === 'user'} />
                                 <span className={`text-[9px] mt-2 block font-bold uppercase tracking-tighter ${msg.sender === 'user' ? 'text-white/60' : 'text-gray-400'}`}>
                                     {msg.timestamp}
                                 </span>
