@@ -111,7 +111,8 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
         // 3. Individual nodes when a category is expanded
         expandedTypes.forEach(et => {
             graphData.nodes.filter(n => n.type === et).forEach(n => {
-                const lbl = String(n.data?.name || n.data?.employee_id || n.id).slice(0, 15);
+                const fullName = String(n.data?.name || n.data?.employee_id || n.id);
+                const lbl = fullName.length > 35 ? fullName.slice(0, 32) + '...' : fullName;
                 els.push({ data: { id: n.id, label: lbl, type: n.type, isCluster: 0, rawData: n.data } });
 
                 // Connect individual node to its cluster
@@ -191,23 +192,29 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
                         'color': '#fff',
                         'font-family': 'Inter, sans-serif',
                         'font-weight': 700,
-                        'font-size': '10px',
+                        'font-size': '9px',
                         'text-valign': 'center',
                         'text-halign': 'center',
-                        'width': n => n.data('isCluster') ? 100 : 70,
-                        'height': n => n.data('isCluster') ? 100 : 70,
+                        'text-outline-width': 1,
+                        'text-outline-color': n => getCfg(n.data('type')).border,
+                        'width': n => n.data('isCluster') ? 120 : 85,
+                        'height': n => n.data('isCluster') ? 120 : 85,
                         'text-wrap': 'wrap',
-                        'text-max-width': '60px',
+                        'text-max-width': '75px',
                         'overlay-padding': 6,
                         'overlay-opacity': 0,
+                        'ghost': 'yes',
+                        'ghost-offset-x': 2,
+                        'ghost-offset-y': 2,
+                        'ghost-opacity': 0.1
                     }
                 },
                 {
                     selector: 'node[isCluster = 1]',
                     style: {
                         label: n => `${n.data('label').toUpperCase()}\n(${n.data('count')})`,
-                        'width': 110, 'height': 110,
-                        'font-size': '12px',
+                        'width': 130, 'height': 130,
+                        'font-size': '11px',
                         'border-width': 4
                     }
                 },
@@ -215,11 +222,11 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
                     selector: 'node[isHub = 1]',
                     style: {
                         'label': '⬡\nGRM HUB',
-                        'width': 130, 'height': 130,
+                        'width': 150, 'height': 150,
                         'background-color': '#3b82f6',
                         'border-color': '#1d4ed8',
                         'border-width': 4,
-                        'font-size': '14px',
+                        'font-size': '13px',
                         'color': '#fff'
                     }
                 },
@@ -307,7 +314,18 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
         cy.on('mouseout', 'edge', () => setHoveredNode(null));
 
         cyRef.current = cy;
-        return () => { if (cyRef.current) cyRef.current.destroy(); };
+
+        const resizeObserver = new ResizeObserver(() => {
+            if (cyRef.current) {
+                cyRef.current.resize();
+            }
+        });
+        if (containerRef.current) resizeObserver.observe(containerRef.current);
+
+        return () => { 
+            if (cyRef.current) cyRef.current.destroy();
+            resizeObserver.disconnect();
+        };
     }, [elements, status]);
 
     // ── Search & Filter Logic ───────────────────────────────────────────────
@@ -343,7 +361,7 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
     const zoomOut = useCallback(() => cyRef.current?.zoom(cyRef.current.zoom() / 1.3), []);
 
     return (
-        <div style={{ width: '100%', height: 'calc(100vh - 160px)', display: 'flex', flexDirection: 'column', background: '#f8fafc', fontFamily: "'Inter', sans-serif", overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: 'calc(100vh - 220px)', minHeight: '500px', display: 'flex', flexDirection: 'column', background: '#f8fafc', fontFamily: "'Inter', sans-serif", overflow: 'hidden' }}>
 
             <div style={{ background: '#fff', borderBottom: '1px solid #f1f5f9', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '15px', overflowX: 'auto', flexShrink: 0 }} className="kg-scroll">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'fit-content', paddingRight: '12px', borderRight: '1px solid #f1f5f9' }}>

@@ -127,20 +127,27 @@ export default function EmployeeChat() {
 
         const utterance = new SpeechSynthesisUtterance(text)
 
-        // Try to find a nice voice
+        // Try to find a nice male voice
         const voices = window.speechSynthesis.getVoices()
-        // Prefer Google voices or high-quality female voices
-        const preferredVoice = voices.find(v => v.name.includes('Google US English')) ||
-            voices.find(v => v.name.includes(' ') && v.lang.startsWith('en')) ||
-            voices.find(v => v.lang.startsWith('en-US')) ||
-            voices[0]
+        
+        // Filter for male voices
+        const maleVoice = voices.find(v => 
+            v.name.toLowerCase().includes('male') || 
+            v.name.toLowerCase().includes('david') || 
+            v.name.toLowerCase().includes('guy') ||
+            v.name.toLowerCase().includes('mark') ||
+            v.name.toLowerCase().includes('raval') ||
+            v.name.toLowerCase().includes('thomas')
+        ) || 
+        voices.find(v => v.lang.startsWith('en-US')) || 
+        voices[0]
 
-        if (preferredVoice) {
-            utterance.voice = preferredVoice
+        if (maleVoice) {
+            utterance.voice = maleVoice
         }
 
-        // Adjust for a "nicer" less robotic tone
-        utterance.pitch = 1.1 // Slightly higher pitch for a friendlier tone
+        // Adjust for a male tone
+        utterance.pitch = 0.9 // Lower pitch for a male tone
         utterance.rate = 1.0   // Natural speed
         utterance.volume = 1.0
 
@@ -149,6 +156,67 @@ export default function EmployeeChat() {
         utterance.onerror = () => setIsSpeaking(false)
 
         window.speechSynthesis.speak(utterance)
+    }
+
+    // Helper to format AI responses (bold and bullet points)
+    const FormattedMessage = ({ text }) => {
+        if (!text) return null;
+
+        // First handle bold **text**
+        const parseBold = (content) => {
+            const parts = content.split(/(\*\*.*?\*\*)/g);
+            return parts.map((part, i) => {
+                if (part.startsWith('**') && part.endsWith('**')) {
+                    return <strong key={i} className="font-bold text-gray-900">{part.slice(2, -2)}</strong>;
+                }
+                return part;
+            });
+        };
+
+        // Split by lines and also handle manual bullets or numbers if run together
+        let processedContent = text;
+        
+        // Normalize inline bullets and numbers to new lines
+        if (!text.includes('\n')) {
+            processedContent = text
+                .replace(/ (\*|-)/g, '\n$1')
+                .replace(/ (\d+\.)/g, '\n$1');
+        }
+
+        const lines = processedContent.split('\n');
+        
+        return (
+            <div className="space-y-3">
+                {lines.map((line, idx) => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return null;
+
+                    // Handle bullet points (starting with * or -)
+                    const isBullet = trimmed.startsWith('*') || trimmed.startsWith('-');
+                    // Handle numbered lists (starting with 1., 2., etc.)
+                    const isNumbered = /^\d+\./.test(trimmed);
+                    
+                    const content = (isBullet || isNumbered) 
+                        ? trimmed.replace(/^([*|-]|\d+\.)\s*/, '') 
+                        : trimmed;
+
+                    if (isBullet || isNumbered) {
+                        return (
+                            <div key={idx} className="flex gap-3 ml-1">
+                                {isBullet ? (
+                                    <div className="min-w-[6px] h-[6px] rounded-full bg-primary-blue mt-2.5 flex-shrink-0 shadow-[0_0_8px_rgba(var(--primary-blue-rgb),0.5)]"></div>
+                                ) : (
+                                    <span className="text-[11px] font-bold text-primary-blue mt-1.5 min-w-[15px]">{trimmed.match(/^\d+\./)[0]}</span>
+                                )}
+                                <span className="flex-1 text-gray-700 leading-relaxed">{parseBold(content)}</span>
+                            </div>
+                        );
+                    }
+
+                    return <p key={idx} className="m-0 leading-relaxed text-gray-700 font-medium">{parseBold(trimmed)}</p>;
+                })}
+            </div>
+        );
     }
 
     const handleSend = async () => {
@@ -308,9 +376,9 @@ export default function EmployeeChat() {
                                     <i className="fas fa-robot"></i>
                                 </div>
                             )}
-                            <div className={`max-w-[75%] p-3.5 rounded-2xl text-[13px] font-medium leading-[1.6] relative group ${msg.sender === 'user'
-                                ? 'bg-primary-blue text-white rounded-br-sm shadow-sm'
-                                : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100 shadow-sm'
+                            <div className={`max-w-[85%] p-4 rounded-2xl text-[13px] font-medium leading-[1.6] relative group ${msg.sender === 'user'
+                                ? 'bg-primary-blue text-white rounded-br-sm shadow-md'
+                                : 'bg-gradient-to-br from-white to-gray-50/50 text-gray-800 rounded-bl-sm border border-gray-100 shadow-sm hover:shadow-md transition-shadow'
                                 }`}>
                                 {msg.sender === 'ai' && (
                                     <button
@@ -321,7 +389,7 @@ export default function EmployeeChat() {
                                         <i className="fas fa-volume-up"></i>
                                     </button>
                                 )}
-                                <p className="m-0">{msg.message}</p>
+                                <FormattedMessage text={msg.message} />
                                 <span className={`text-[9px] mt-2 block font-bold uppercase tracking-tighter ${msg.sender === 'user' ? 'text-white/60' : 'text-gray-400'}`}>
                                     {msg.timestamp}
                                 </span>
@@ -378,8 +446,13 @@ export default function EmployeeChat() {
                         </div>
 
                         {isSpeaking && (
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-primary-blue uppercase tracking-widest animate-pulse">
-                                <i className="fas fa-volume-up"></i> Speaking
+                            <div className="flex items-center gap-2 px-3 py-1 bg-primary-blue/5 rounded-full text-[9px] font-bold text-primary-blue uppercase tracking-[0.1em] border border-primary-blue/10">
+                                <span className="flex gap-1">
+                                    <span className="w-1 h-3 bg-primary-blue/60 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                    <span className="w-1 h-3 bg-primary-blue rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                    <span className="w-1 h-3 bg-primary-blue/60 rounded-full animate-bounce"></span>
+                                </span>
+                                AI Speaking
                             </div>
                         )}
                     </div>

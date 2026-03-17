@@ -48,11 +48,11 @@ export default function EmployeeProgress() {
                 if (response.ok) {
                     const responseData = await response.json();
                     const data = responseData.data || [];
-                    
+
                     if (data.length > 0) {
                         // Extract unique weeks and sort them
                         const uniqueWeeks = [...new Set(data.map(item => item.week_start))].sort();
-                        
+
                         // Group by title
                         const groupedByTitle = data.reduce((acc, item) => {
                             if (!acc[item.title]) acc[item.title] = {};
@@ -71,9 +71,9 @@ export default function EmployeeProgress() {
                                 triggerLineEvent: true,
                                 data: uniqueWeeks.map(week => groupedByTitle[title][week] || 0),
                                 itemStyle: { color },
-                                lineStyle: { 
-                                    width: 3.5, 
-                                    cap: 'round', 
+                                lineStyle: {
+                                    width: 3.5,
+                                    cap: 'round',
                                     join: 'round',
                                     shadowBlur: 10,
                                     shadowColor: 'rgba(0,0,0,0.05)',
@@ -155,7 +155,7 @@ export default function EmployeeProgress() {
                 if (response.ok) {
                     const responseData = await response.json();
                     const actionData = responseData.data || [];
-                    
+
                     const grouped = actionData.reduce((acc, item) => {
                         if (!acc[item.goal_id]) acc[item.goal_id] = [];
                         if (item.action_item) {
@@ -236,7 +236,7 @@ export default function EmployeeProgress() {
                 console.error("Error fetching skill map:", error);
             }
         };
-        
+
         const fetchSessionsData = async () => {
             try {
                 const response = await fetch('https://ig.gov-cloud.ai/pi-cohorts-service-dbaas/v1.0/cohorts/adhoc', {
@@ -350,7 +350,7 @@ export default function EmployeeProgress() {
 
             const option = {
                 grid: { left: 40, right: 30, top: 40, bottom: 40 },
-                tooltip: { 
+                tooltip: {
                     trigger: 'axis',
                     axisPointer: { type: 'none' },
                     formatter: (params) => {
@@ -373,7 +373,7 @@ export default function EmployeeProgress() {
                 series: chartData.series.map(s => ({
                     ...s,
                     triggerLineEvent: true,
-                    emphasis: { 
+                    emphasis: {
                         focus: 'series',
                         lineStyle: { width: 4 }
                     }
@@ -408,7 +408,7 @@ export default function EmployeeProgress() {
 
             const option = {
                 grid: { left: 40, right: 20, top: 40, bottom: 40 },
-                tooltip: { 
+                tooltip: {
                     trigger: 'axis',
                     formatter: (params) => {
                         const p = params[0];
@@ -422,12 +422,12 @@ export default function EmployeeProgress() {
                         </div>`;
                     }
                 },
-                xAxis: { 
-                    type: 'category', 
+                xAxis: {
+                    type: 'category',
                     data: sessionsData.dates,
                     axisLabel: { fontSize: 8, color: '#94a3b8' }
                 },
-                yAxis: { 
+                yAxis: {
                     type: 'value',
                     axisLabel: { fontSize: 8, color: '#94a3b8' },
                     splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
@@ -463,14 +463,15 @@ export default function EmployeeProgress() {
             topicChartInstance.current = echarts.init(topicChartRef.current);
 
             const option = {
-                grid: { left: 80, right: 30, top: 20, bottom: 20 },
+                grid: { left: 120, right: 30, top: 20, bottom: 20 },
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: { type: 'shadow' },
                     formatter: (params) => {
                         const p = params[0];
+                        const formattedName = p.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         return `<div style="padding: 4px">
-                            <div style="font-weight: 800; font-size: 11px; margin-bottom: 4px; color: #1e293b">${p.name}</div>
+                            <div style="font-weight: 800; font-size: 11px; margin-bottom: 4px; color: #1e293b">${formattedName}</div>
                             <div style="display: flex; align-items: center; gap: 8px">
                                 <div style="width: 8px; height: 8px; border-radius: 2px; background: #8b5cf6"></div>
                                 <span style="font-size: 10px; color: #64748b">Sessions</span>
@@ -485,11 +486,14 @@ export default function EmployeeProgress() {
                     data: [...topicsData.topics].reverse(),
                     axisLine: { show: false },
                     axisTick: { show: false },
-                    axisLabel: { 
-                        fontSize: 9, 
+                    axisLabel: {
+                        fontSize: 9,
                         color: '#64748b',
                         fontWeight: 600,
-                        formatter: (val) => val.length > 15 ? val.substring(0, 12) + '...' : val
+                        width: 100,
+                        overflow: 'break',
+                        lineHeight: 12,
+                        formatter: (val) => val.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
                     }
                 },
                 series: [{
@@ -640,11 +644,10 @@ export default function EmployeeProgress() {
                                             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 ml-2">
                                                 {goal.milestones.map((m, i) => (
                                                     <div key={i} className="flex items-center gap-2 text-[11px] p-2 bg-gray-50/50 rounded-xl border border-gray-100/50 hover:border-primary-blue/20 transition-all">
-                                                        <i className={`fas fa-${
-                                                            m.status === 'completed' ? 'check-circle text-success' : 
-                                                            m.status === 'in_progress' ? 'circle-notch fa-spin text-primary-blue' : 
-                                                            'circle text-gray-200'
-                                                        } text-[10px]`}></i>
+                                                        <i className={`fas fa-${m.status === 'completed' ? 'check-circle text-success' :
+                                                                m.status === 'in_progress' ? 'circle-notch fa-spin text-primary-blue' :
+                                                                    'circle text-gray-200'
+                                                            } text-[10px]`}></i>
                                                         <div className="flex-1">
                                                             <div className={`${m.status === 'completed' ? 'line-through text-gray-400 font-medium' : 'text-gray-700 font-bold'} text-[11px]`}>{m.title}</div>
                                                             <div className="text-[8px] text-gray-400 uppercase font-bold tracking-tight opacity-70">
@@ -707,12 +710,11 @@ export default function EmployeeProgress() {
                                 achievements.map((achievement, i) => (
                                     <div key={i} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-b-0">
                                         <div className="w-8 h-8 bg-warning/10 text-warning rounded-lg flex items-center justify-center flex-shrink-0 text-sm">
-                                            <i className={`fas fa-${
-                                                achievement.achievement_title?.includes('Goal') ? 'bullseye' : 
-                                                achievement.achievement_title?.includes('Session') ? 'comments' : 
-                                                achievement.achievement_title?.includes('Learning') ? 'lightbulb' : 
-                                                'star'
-                                            }`}></i>
+                                            <i className={`fas fa-${achievement.achievement_title?.includes('Goal') ? 'bullseye' :
+                                                    achievement.achievement_title?.includes('Session') ? 'comments' :
+                                                        achievement.achievement_title?.includes('Learning') ? 'lightbulb' :
+                                                            'star'
+                                                }`}></i>
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-bold text-[12px] text-gray-800 flex justify-between gap-2 overflow-hidden">

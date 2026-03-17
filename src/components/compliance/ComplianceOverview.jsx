@@ -13,11 +13,13 @@ export default function ComplianceOverview() {
     const [apiData, setApiData] = useState(null)
     const [trendData, setTrendData] = useState(null)
     const [recentEvents, setRecentEvents] = useState(null)
+    const [boundaryData, setBoundaryData] = useState(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
+                // Fetch Card Stats
                 // Fetch Card Stats
                 const statsResponse = await fetch(import.meta.env.VITE_COHORTS_API_URL, {
                     method: 'POST',
@@ -28,12 +30,19 @@ export default function ComplianceOverview() {
                     },
                     body: JSON.stringify({
                         "type": "TIDB",
-                        "definition": "SELECT COUNT(*) AS reasoning_events, IFNULL(SUM(CASE WHEN confidence_score < 0.40 THEN 1 ELSE 0 END), 0) AS violations, CONCAT( ROUND( 100.0 * IFNULL(SUM(CASE WHEN confidence_score >= 0.40 THEN 1 ELSE 0 END), 0) / NULLIF(COUNT(*), 0), 0 ), '% PASS' ) AS violations_pass_text, IFNULL(SUM(CASE WHEN confidence_score < 0.50 THEN 1 ELSE 0 END), 0) AS escalations, CONCAT( ROUND( 100.0 * IFNULL(SUM(CASE WHEN confidence_score < 0.50 THEN 1 ELSE 0 END), 0) / NULLIF(COUNT(*), 0), 2 ), '% RATE' ) AS escalation_rate_text, ROUND( 100.0 * IFNULL(SUM(CASE WHEN confidence_score >= 0.40 THEN 1 ELSE 0 END), 0) / NULLIF(COUNT(*), 0), 0 ) AS pass_rate, CONCAT( ROUND( 100.0 * IFNULL(SUM(CASE WHEN confidence_score >= 0.40 THEN 1 ELSE 0 END), 0) / NULLIF(COUNT(*), 0), 0 ), '%' ) AS pass_rate_text, CONCAT( 'Q', QUARTER(CURRENT_DATE), ' ', YEAR(CURRENT_DATE) - 1 ) AS period_label FROM t_69a830fc42abf6674cbcb942_t WHERE YEAR(created_at) = YEAR(CURRENT_DATE) - 1 AND QUARTER(created_at) = QUARTER(CURRENT_DATE);"
+                        "definition": "WITH audit_stats AS ( SELECT COUNT(*) AS reasoning_events FROM t_69b3f2dba006f77c68dc80fb_t WHERE audit_created_at >= '2025-01-01' AND audit_created_at < DATE_ADD('2025-03-31', INTERVAL 1 DAY) ), violation_stats AS ( SELECT COUNT(*) AS violations FROM t_69b3f434a006f77c68dc80fd_t WHERE created_at >= '2025-01-01' AND created_at < DATE_ADD('2025-03-31', INTERVAL 1 DAY) ), escalation_stats AS ( SELECT COUNT(*) AS escalations FROM t_69b3f503a006f77c68dc80fe_t WHERE created_at >= '2025-01-01' AND created_at < DATE_ADD('2025-03-31', INTERVAL 1 DAY) ) SELECT a.reasoning_events, v.violations, e.escalations, ROUND( CASE WHEN a.reasoning_events = 0 THEN 0 ELSE ((a.reasoning_events - v.violations) * 100.0 / a.reasoning_events) END, 2 ) AS pass_rate_pct, ROUND( CASE WHEN a.reasoning_events = 0 THEN 0 ELSE (e.escalations * 100.0 / a.reasoning_events) END, 2 ) AS escalation_rate_pct FROM audit_stats a CROSS JOIN violation_stats v CROSS JOIN escalation_stats e;"
                     })
                 });
                 const statsResult = await statsResponse.json();
                 if (statsResult.status === 'success' && statsResult.data?.length > 0) {
-                    setApiData(statsResult.data[0]);
+                    const raw = statsResult.data[0];
+                    setApiData({
+                        ...raw,
+                        violations_pass_text: `${raw.pass_rate_pct}% PASS`,
+                        escalation_rate_text: `${raw.escalation_rate_pct}% RATE`,
+                        pass_rate_text: `${raw.pass_rate_pct}%`,
+                        period_label: 'Q1 2025'
+                    });
                 }
 
                 // Fetch Trend Data
@@ -46,7 +55,7 @@ export default function ComplianceOverview() {
                     },
                     body: JSON.stringify({
                         "type": "TIDB",
-                        "definition": "SELECT x.quarter_key, IFNULL(t.audit_events, 0) AS audit_events FROM ( SELECT 'Q1' AS quarter_key, 1 AS sort_order UNION ALL SELECT 'Q2', 2 UNION ALL SELECT 'Q3', 3 UNION ALL SELECT 'Q4', 4 ) x LEFT JOIN ( SELECT CASE WHEN MONTH(created_at) BETWEEN 1 AND 3 THEN 'Q1' WHEN MONTH(created_at) BETWEEN 4 AND 6 THEN 'Q2' WHEN MONTH(created_at) BETWEEN 7 AND 9 THEN 'Q3' ELSE 'Q4' END AS quarter_key, COUNT(*) AS audit_events FROM t_69a830fc42abf6674cbcb942_t WHERE YEAR(created_at) = YEAR(CURRENT_DATE)-1  GROUP BY CASE WHEN MONTH(created_at) BETWEEN 1 AND 3 THEN 'Q1' WHEN MONTH(created_at) BETWEEN 4 AND 6 THEN 'Q2' WHEN MONTH(created_at) BETWEEN 7 AND 9 THEN 'Q3' ELSE 'Q4' END ) t ON x.quarter_key = t.quarter_key ORDER BY x.sort_order;"
+                        "definition": "SELECT YEAR(audit_created_at) AS year, QUARTER(audit_created_at) AS quarter, COUNT(*) AS total_audit_events FROM t_69b3f2dba006f77c68dc80fb_t GROUP BY YEAR(audit_created_at), QUARTER(audit_created_at) ORDER BY year, quarter;"
                     })
                 });
                 const trendResult = await trendResponse.json();
@@ -64,12 +73,36 @@ export default function ComplianceOverview() {
                     },
                     body: JSON.stringify({
                         "type": "TIDB",
-                        "definition": "SELECT event_title, DATE_FORMAT(MAX(created_at), '%b %d') AS event_date FROM ( SELECT CASE WHEN decision_type = 'framework_selection' THEN CONCAT(selected_framework, ' ', selected_stage) ELSE decision_type END AS event_title, created_at FROM t_69a830fc42abf6674cbcb942_t ) x GROUP BY event_title ORDER BY MAX(created_at) DESC LIMIT 5;"
+                        "definition": "SELECT audit_id, decision_type, framework_used, confidence_score, audit_created_at FROM t_69b3f2dba006f77c68dc80fb_t ORDER BY audit_created_at DESC LIMIT 10;"
                     })
                 });
                 const eventsResult = await eventsResponse.json();
                 if (eventsResult.status === 'success' && eventsResult.data) {
-                    setRecentEvents(eventsResult.data);
+                    setRecentEvents(eventsResult.data.map(d => ({
+                        event_title: d.decision_type.replace(/_/g, ' '),
+                        event_date: new Date(d.audit_created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+                        audit_id: d.audit_id,
+                        framework: d.framework_used,
+                        confidence: d.confidence_score
+                    })));
+                }
+
+                // Fetch Boundary Protection Data
+                const boundaryResponse = await fetch(import.meta.env.VITE_COHORTS_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'accept': 'application/json',
+                        'authorization': `Bearer ${import.meta.env.VITE_COHORTS_AUTH_TOKEN}`,
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        "type": "TIDB",
+                        "definition": "SELECT p.policy_id, p.policy_name, p.related_framework, p.severity, p.status AS policy_status, COUNT(DISTINCT a.audit_id) AS checks_count, COUNT(DISTINCT v.violation_id) AS errors_count, CASE WHEN COUNT(DISTINCT v.violation_id) = 0 THEN 'SECURE' ELSE 'BREACHED' END AS boundary_status FROM t_69b3f374a006f77c68dc80fc_t p LEFT JOIN t_69b3f2dba006f77c68dc80fb_t a ON p.related_framework = a.framework_used AND a.audit_created_at >= '2025-01-01' AND a.audit_created_at < DATE_ADD('2025-03-31', INTERVAL 1 DAY) LEFT JOIN t_69b3f434a006f77c68dc80fd_t v ON p.policy_id = v.policy_id AND v.created_at >= '2025-01-01' AND v.created_at < DATE_ADD('2025-03-31', INTERVAL 1 DAY) WHERE LOWER(COALESCE(p.status, 'active')) = 'active' GROUP BY p.policy_id, p.policy_name, p.related_framework, p.severity, p.status ORDER BY p.policy_name;"
+                    })
+                });
+                const boundaryResult = await boundaryResponse.json();
+                if (boundaryResult.status === 'success' && boundaryResult.data) {
+                    setBoundaryData(boundaryResult.data);
                 }
 
             } catch (error) {
@@ -87,17 +120,20 @@ export default function ComplianceOverview() {
             if (chartInstance.current) chartInstance.current.dispose()
             chartInstance.current = echarts.init(chartRef.current)
 
+            const xAxisData = trendData ? trendData.map(d => `Q${d.quarter} ${d.year}`) : ['Q1', 'Q2', 'Q3', 'Q4']
+            const seriesData = trendData ? trendData.map(d => d.total_audit_events) : [6234, 7891, 9234, apiData ? apiData.reasoning_events : 12847]
+
             const option = {
                 grid: { left: 50, right: 20, top: 40, bottom: 40 },
                 tooltip: { trigger: 'axis', axisPointer: { type: 'line' } },
                 legend: { top: 0, textStyle: { fontSize: 10 }, icon: 'circle' },
-                xAxis: { type: 'category', data: ['Q1', 'Q2', 'Q3', 'Q4'], splitLine: { show: false }, axisLabel: { fontSize: 9 } },
+                xAxis: { type: 'category', data: xAxisData, splitLine: { show: false }, axisLabel: { fontSize: 9 } },
                 yAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed', opacity: 0.3 } }, axisLabel: { fontSize: 9 } },
                 series: [{
                     name: 'Audit Events',
                     type: 'line',
                     smooth: true,
-                    data: trendData ? trendData.map(d => d.audit_events) : [6234, 7891, 9234, apiData ? apiData.reasoning_events : 12847],
+                    data: seriesData,
                     itemStyle: { color: '#5470C6' },
                     areaStyle: {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
@@ -128,7 +164,7 @@ export default function ComplianceOverview() {
                     <i className="fas fa-shield-alt text-primary-blue text-xl"></i>
                     Compliance Overview
                 </h1>
-                <p className="text-gray-400 text-sm font-medium tracking-wide">{apiData ? `${apiData.period_label} - Comprehensive audit status` : 'Q4 2023 - Comprehensive audit status'}</p>
+                <p className="text-gray-400 text-sm font-medium tracking-wide">{apiData ? `${apiData.period_label} - Comprehensive audit status` : 'Loading Compliance Status...'}</p>
                 {loading && (
                     <div className="text-[10px] text-primary-blue animate-pulse mt-1 font-bold">
                         <i className="fas fa-sync-alt fa-spin mr-1"></i> UPDATING REAL-TIME DATA...
@@ -137,18 +173,16 @@ export default function ComplianceOverview() {
             </div>
 
             {/* Status Banner */}
-            <div className={`flex items-center gap-4 p-4 rounded-xl mb-4 border shadow-sm ${overview.violations === 0 ? 'bg-success/5 border-success/10' : 'bg-warning/5 border-warning/10'}`}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${overview.violations === 0 ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
-                    <i className={`fas fa-${overview.violations === 0 ? 'check-circle' : 'exclamation-triangle'}`}></i>
+            <div className={`flex items-center gap-4 p-4 rounded-xl mb-4 border shadow-sm ${(!apiData || apiData.violations === 0) ? 'bg-success/5 border-success/10' : 'bg-warning/5 border-warning/10'}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${(!apiData || apiData.violations === 0) ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
+                    <i className={`fas fa-${(!apiData || apiData.violations === 0) ? 'check-circle' : 'exclamation-triangle'}`}></i>
                 </div>
                 <div className="flex-1">
-                    <h2 className="text-sm font-bold text-gray-800 tracking-tight">{overview.violations === 0 ? 'All Systems Compliant' : 'Attention Required'}</h2>
+                    <h2 className="text-sm font-bold text-gray-800 tracking-tight">{(apiData && apiData.violations === 0) ? 'All Systems Compliant' : 'Attention Required'}</h2>
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
                         {apiData 
                             ? `${apiData.reasoning_events.toLocaleString()} events audited - ${apiData.violations} boundary breaches.`
-                            : overview.violations === 0
-                                ? `${overview.totalReasoningEvents.toLocaleString()} events audited - 0 boundary breaches.`
-                                : `${overview.violations} violation(s) detected. Immediate review required.`}
+                            : 'Authenticating with Compliance Engine...'}
                     </p>
                 </div>
             </div>
@@ -158,28 +192,28 @@ export default function ComplianceOverview() {
                 {[
                     { 
                         icon: 'check-circle', 
-                        value: apiData ? apiData.reasoning_events.toLocaleString() : overview.totalReasoningEvents.toLocaleString(), 
+                        value: apiData ? apiData.reasoning_events.toLocaleString() : '---', 
                         label: 'Reasoning Events', 
-                        change: apiData ? apiData.period_label : 'Q4 2023' 
+                        change: apiData ? apiData.period_label : 'Q1 2025' 
                     },
                     { 
                         icon: 'shield-alt', 
-                        value: apiData ? apiData.violations : overview.violations, 
+                        value: apiData ? apiData.violations : '---', 
                         label: 'Violations', 
-                        change: apiData ? apiData.violations_pass_text : '100% Pass', 
-                        color: (apiData ? apiData.violations === 0 : overview.violations === 0) ? 'success' : 'warning'
+                        change: apiData ? apiData.violations_pass_text : 'Pending', 
+                        color: apiData ? (apiData.violations === 0 ? 'success' : 'warning') : ''
                     },
                     { 
                         icon: 'exclamation-circle', 
-                        value: apiData ? apiData.escalations : overview.escalations, 
+                        value: apiData ? apiData.escalations : '---', 
                         label: 'Escalations', 
-                        change: apiData ? apiData.escalation_rate_text : `${((overview.escalations / overview.totalReasoningEvents) * 100).toFixed(2)}% rate` 
+                        change: apiData ? apiData.escalation_rate_text : '---' 
                     },
                     { 
                         icon: 'clipboard-check', 
-                        value: apiData ? apiData.pass_rate_text : `${overview.auditPassRate}%`, 
+                        value: apiData ? apiData.pass_rate_text : '---', 
                         label: 'Pass Rate', 
-                        change: 'Validated', 
+                        change: apiData ? 'Validated' : 'Queued', 
                         color: 'success' 
                     },
                 ].map((stat, i) => (
@@ -207,23 +241,29 @@ export default function ComplianceOverview() {
                                 <i className="fas fa-shield-alt text-primary-blue text-[10px]"></i> Boundary Protection
                             </h2>
                         </div>
-                        <div className="p-4 space-y-4">
-                            {Object.entries(overview.boundaryCategories).map(([category, data]) => (
-                                <div key={category} className="pb-4 border-b border-gray-50 last:border-b-0 last:pb-0">
+                        <div className="p-4 space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar">
+                            {(boundaryData || [
+                                { policy_name: 'Clinical Boundary', checks_count: 0, errors_count: 0, boundary_status: 'SECURE' },
+                                { policy_name: 'Legal Boundary', checks_count: 0, errors_count: 0, boundary_status: 'SECURE' },
+                                { policy_name: 'Hr Boundary', checks_count: 0, errors_count: 0, boundary_status: 'SECURE' },
+                                { policy_name: 'Confidentiality Boundary', checks_count: 0, errors_count: 0, boundary_status: 'SECURE' }
+                            ]).map((data, idx) => (
+                                <div key={data.policy_id || idx} className="pb-4 border-b border-gray-50 last:border-b-0 last:pb-0">
                                     <div className="flex items-center justify-between mb-2">
                                         <div>
-                                            <h3 className="text-[12px] font-bold text-gray-800 tracking-tight">{category.charAt(0).toUpperCase() + category.slice(1)} Boundary</h3>
+                                            <h3 className="text-[12px] font-bold text-gray-800 tracking-tight">{data.policy_name}</h3>
                                             <div className="flex items-center gap-3 mt-1">
-                                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Checks: {data.checks.toLocaleString()}</span>
-                                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Errors: {data.violations}</span>
+                                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Checks: {data.checks_count.toLocaleString()}</span>
+                                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Errors: {data.errors_count}</span>
                                             </div>
                                         </div>
-                                        <div className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest ${data.violations === 0 ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
-                                            {data.violations === 0 ? 'Secure' : 'Alert'}
+                                        <div className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest ${data.boundary_status === 'SECURE' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
+                                            {data.boundary_status}
                                         </div>
                                     </div>
                                     <div className="w-full bg-gray-50 border border-gray-100 rounded-full h-1 relative overflow-hidden">
-                                        <div className="bg-success h-full rounded-full transition-all duration-700" style={{ width: `${((data.checks - data.violations) / data.checks * 100)}%` }}></div>
+                                        <div className={`h-full rounded-full transition-all duration-700 ${data.boundary_status === 'SECURE' ? 'bg-success' : 'bg-danger'}`} 
+                                             style={{ width: `${data.checks_count > 0 ? Math.max(0, ((data.checks_count - data.errors_count) / data.checks_count * 100)) : 100}%` }}></div>
                                     </div>
                                 </div>
                             ))}
@@ -242,34 +282,6 @@ export default function ComplianceOverview() {
                 </div>
 
                 <div className="space-y-6">
-                    {/* Utility Bench */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/10">
-                            <h2 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                <i className="fas fa-tasks text-primary-blue text-[10px]"></i> Quick Access
-                            </h2>
-                        </div>
-                        <div className="p-3 grid grid-cols-1 gap-2">
-                            {[
-                                { icon: 'search', label: 'Explore GRM', tab: 'grm' },
-                                { icon: 'file-export', label: 'Audit Assets', tab: 'audit' },
-                                { icon: 'cog', label: 'Manage Policy', tab: 'policy' },
-                                { icon: 'bell', label: 'Monitor Live', tab: 'violations' },
-                            ].map((action, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => navigate(`/compliance/${action.tab}`)}
-                                    className="flex items-center gap-3 p-2 bg-gray-50/50 rounded-xl border border-transparent hover:border-primary-blue/30 hover:bg-white transition-all text-left cursor-pointer group"
-                                >
-                                    <div className="w-7 h-7 rounded-lg bg-white border border-gray-100 flex items-center justify-center group-hover:bg-primary-blue/5">
-                                        <i className={`fas fa-${action.icon} text-primary-blue text-[10px]`}></i>
-                                    </div>
-                                    <span className="text-[11px] font-bold text-gray-700 group-hover:text-primary-blue">{action.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
                     {/* System Status Mini */}
                     <div className="bg-primary-blue/5 rounded-xl border border-primary-blue/10 p-4">
                         <div className="text-[9px] text-primary-blue font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -292,17 +304,33 @@ export default function ComplianceOverview() {
                         <div className="px-4 py-1.5 border-b border-gray-50 bg-gray-50/10">
                             <h2 className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Recent Events</h2>
                         </div>
-                        <div className="p-3 space-y-3">
-                            {(recentEvents || [
-                                { event_title: 'Audit Completed', event_date: 'Jan 05' },
-                                { event_title: 'Policy Rev 2.1', event_date: 'Dec 28' },
-                                { event_title: 'Scalability Boost', event_date: 'Dec 15' },
-                            ]).map((activity, i) => (
-                                <div key={i} className="flex justify-between items-center text-[11px]">
-                                    <span className="font-bold text-gray-700 truncate pr-2">{activity.event_title}</span>
-                                    <span className="text-[9px] text-gray-400 font-bold uppercase whitespace-nowrap">{activity.event_date}</span>
+                        <div className="p-3 space-y-4 max-h-[430px] overflow-y-auto custom-scrollbar">
+                            {(recentEvents || []).map((activity, i) => (
+                                <div key={i} className="pb-3 border-b border-gray-50 last:border-b-0 last:pb-0">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className="text-[10px] font-bold text-gray-800 uppercase tracking-tight truncate pr-2">{activity.event_title}</span>
+                                        <span className="text-[8px] text-gray-400 font-bold uppercase whitespace-nowrap bg-gray-50 px-1.5 py-0.5 rounded">{activity.event_date}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                        <span className="text-[8px] text-primary-blue bg-primary-blue/5 px-1.5 py-0.5 rounded font-bold">{activity.audit_id}</span>
+                                        <span className="text-[8px] text-gray-400 font-bold uppercase">Framework: <span className="text-gray-600">{activity.framework}</span></span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                            <div 
+                                                className={`h-full rounded-full transition-all duration-500 ${activity.confidence >= 0.7 ? 'bg-success' : (activity.confidence >= 0.4 ? 'bg-warning' : 'bg-danger')}`}
+                                                style={{ width: `${activity.confidence * 100}%` }}
+                                            ></div>
+                                        </div>
+                                        <span className={`text-[8px] font-bold ${activity.confidence >= 0.7 ? 'text-success' : (activity.confidence >= 0.4 ? 'text-warning' : 'text-danger')}`}>
+                                            {(activity.confidence * 100).toFixed(0)}% Conf.
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
+                            {(!recentEvents || recentEvents.length === 0) && (
+                                <div className="text-center py-4 text-[10px] text-gray-400 font-bold uppercase">Initializing Live Feed...</div>
+                            )}
                         </div>
                     </div>
                 </div>
