@@ -645,8 +645,8 @@ export default function EmployeeProgress() {
                                                 {goal.milestones.map((m, i) => (
                                                     <div key={i} className="flex items-center gap-2 text-[11px] p-2 bg-gray-50/50 rounded-xl border border-gray-100/50 hover:border-primary-blue/20 transition-all">
                                                         <i className={`fas fa-${m.status === 'completed' ? 'check-circle text-success' :
-                                                                m.status === 'in_progress' ? 'circle-notch fa-spin text-primary-blue' :
-                                                                    'circle text-gray-200'
+                                                            m.status === 'in_progress' ? 'circle-notch fa-spin text-primary-blue' :
+                                                                'circle text-gray-200'
                                                             } text-[10px]`}></i>
                                                         <div className="flex-1">
                                                             <div className={`${m.status === 'completed' ? 'line-through text-gray-400 font-medium' : 'text-gray-700 font-bold'} text-[11px]`}>{m.title}</div>
@@ -711,9 +711,9 @@ export default function EmployeeProgress() {
                                     <div key={i} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-b-0">
                                         <div className="w-8 h-8 bg-warning/10 text-warning rounded-lg flex items-center justify-center flex-shrink-0 text-sm">
                                             <i className={`fas fa-${achievement.achievement_title?.includes('Goal') ? 'bullseye' :
-                                                    achievement.achievement_title?.includes('Session') ? 'comments' :
-                                                        achievement.achievement_title?.includes('Learning') ? 'lightbulb' :
-                                                            'star'
+                                                achievement.achievement_title?.includes('Session') ? 'comments' :
+                                                    achievement.achievement_title?.includes('Learning') ? 'lightbulb' :
+                                                        'star'
                                                 }`}></i>
                                         </div>
                                         <div className="flex-1">

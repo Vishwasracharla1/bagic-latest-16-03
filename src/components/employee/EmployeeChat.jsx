@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { MOCK_DATA } from '../../data/mockData'
 
 export default function EmployeeChat() {
@@ -7,28 +8,49 @@ export default function EmployeeChat() {
     const [isListening, setIsListening] = useState(false)
     const [isSpeaking, setIsSpeaking] = useState(false)
     const [employees, setEmployees] = useState([])
-    const initialId = localStorage.getItem('active_employee_id') || localStorage.getItem('user_id') || ''
+    const role = localStorage.getItem('user_role')
+    const initialId = localStorage.getItem('active_employee_id') || (role !== 'admin' ? localStorage.getItem('user_id') : '')
     const [selectedEmployee, setSelectedEmployee] = useState(initialId)
-    const initialName = localStorage.getItem('active_employee_name') || localStorage.getItem('user_name') || ''
+    const initialName = localStorage.getItem('active_employee_name') || (role !== 'admin' ? localStorage.getItem('user_name') : '')
     const [selectedEmployeeName, setSelectedEmployeeName] = useState(initialName)
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
     const [isLoadingEmployees, setIsLoadingEmployees] = useState(false)
-    const role = localStorage.getItem('user_role')
     const chatEndRef = useRef(null)
+    const location = useLocation()
+    const autoSentRef = useRef(false)
 
     const scrollToBottom = () => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
     }
 
-    useEffect(() => {
-        scrollToBottom()
-    }, [messages])
+
 
     useEffect(() => {
         if (role === 'admin') {
             fetchEmployees()
         }
     }, [role])
+
+    // Stop voice when component unmounts or tab becomes hidden
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                window.speechSynthesis.cancel()
+                setIsSpeaking(false)
+            }
+        }
+
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+
+        return () => {
+            window.speechSynthesis.cancel()
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
+        }
+    }, [])
+
+    useEffect(() => {
+        scrollToBottom()
+    }, [messages])
 
     const fetchEmployees = async () => {
         setIsLoadingEmployees(true)
@@ -42,7 +64,7 @@ export default function EmployeeChat() {
                 },
                 body: JSON.stringify({
                     "dbType": "TIDB",
-                    "distinctColumns": ["employee_id","first_name","last_name"]
+                    "distinctColumns": ["employee_id", "first_name", "last_name"]
                 })
             })
             const data = await response.json()
@@ -54,7 +76,7 @@ export default function EmployeeChat() {
                 // Ensure unique objects by employee_id
                 const uniqueEmployees = []
                 const seenIds = new Set()
-                
+
                 content.forEach(item => {
                     if (item.employee_id && !seenIds.has(item.employee_id)) {
                         seenIds.add(item.employee_id)
@@ -66,9 +88,13 @@ export default function EmployeeChat() {
                 if (uniqueEmployees.length > 0) {
                     const currentId = localStorage.getItem('active_employee_id');
                     const currentEmp = uniqueEmployees.find(e => e.employee_id === currentId) || uniqueEmployees[0];
-                    
+
                     setSelectedEmployee(currentEmp.employee_id);
                     setSelectedEmployeeName(`${currentEmp.first_name} ${currentEmp.last_name}`);
+                    
+                    // Persist for other components
+                    localStorage.setItem('active_employee_id', currentEmp.employee_id);
+                    localStorage.setItem('active_employee_name', `${currentEmp.first_name} ${currentEmp.last_name}`);
                 }
             }
         } catch (error) {
@@ -129,18 +155,18 @@ export default function EmployeeChat() {
 
         // Try to find a nice male voice
         const voices = window.speechSynthesis.getVoices()
-        
+
         // Filter for male voices
-        const maleVoice = voices.find(v => 
-            v.name.toLowerCase().includes('male') || 
-            v.name.toLowerCase().includes('david') || 
+        const maleVoice = voices.find(v =>
+            v.name.toLowerCase().includes('male') ||
+            v.name.toLowerCase().includes('david') ||
             v.name.toLowerCase().includes('guy') ||
             v.name.toLowerCase().includes('mark') ||
             v.name.toLowerCase().includes('raval') ||
             v.name.toLowerCase().includes('thomas')
-        ) || 
-        voices.find(v => v.lang.startsWith('en-US')) || 
-        voices[0]
+        ) ||
+            voices.find(v => v.lang.startsWith('en-US')) ||
+            voices[0]
 
         if (maleVoice) {
             utterance.voice = maleVoice
@@ -179,7 +205,7 @@ export default function EmployeeChat() {
 
         // Split by lines and also handle manual bullets or numbers if run together
         let processedContent = text;
-        
+
         // Normalize inline bullets and numbers to new lines
         if (!text.includes('\n')) {
             processedContent = text
@@ -188,7 +214,7 @@ export default function EmployeeChat() {
         }
 
         const lines = processedContent.split('\n');
-        
+
         return (
             <div className={`space-y-3 ${textColor}`}>
                 {lines.map((line, idx) => {
@@ -199,9 +225,9 @@ export default function EmployeeChat() {
                     const isBullet = trimmed.startsWith('*') || trimmed.startsWith('-');
                     // Handle numbered lists (starting with 1., 2., etc.)
                     const isNumbered = /^\d+\./.test(trimmed);
-                    
-                    const content = (isBullet || isNumbered) 
-                        ? trimmed.replace(/^([*|-]|\d+\.)\s*/, '') 
+
+                    const content = (isBullet || isNumbered)
+                        ? trimmed.replace(/^([*|-]|\d+\.)\s*/, '')
                         : trimmed;
 
                     if (isBullet || isNumbered) {
@@ -223,14 +249,49 @@ export default function EmployeeChat() {
         );
     }
 
-    const handleSend = async () => {
-        if (!input.trim()) return
-        if (!selectedEmployee) {
+    // YouTube Search Integration
+    const searchYouTube = async (query) => {
+        try {
+            const apiKey = import.meta.env.VITE_GOOGLE_YOUTUBE_API_KEY;
+            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=5&key=${apiKey}`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.items && data.items.length > 0) {
+                return data.items;
+            }
+            return null;
+        } catch (error) {
+            console.error("YouTube search failed", error);
+            return null;
+        }
+    };
+
+    const handleFetchVideo = async (messageIndex, query) => {
+        const msg = messages[messageIndex];
+        if (msg.isLoadingVideo) return;
+
+        // Update state to show loading
+        setMessages(prev => prev.map((m, i) =>
+            i === messageIndex ? { ...m, isLoadingVideo: true } : m
+        ));
+
+        const videoDataList = await searchYouTube(query);
+
+        setMessages(prev => prev.map((m, i) =>
+            i === messageIndex ? { ...m, videos: videoDataList, isLoadingVideo: false, videoOffered: true } : m
+        ));
+    };
+
+    const handleSend = async (forcedMessage = null) => {
+        const messageToSend = typeof forcedMessage === 'string' ? forcedMessage : input
+        if (!messageToSend || typeof messageToSend !== 'string' || !messageToSend.trim()) return
+        if (!selectedEmployee || selectedEmployee === 'admin') {
             alert("Please select an employee first")
             return
         }
 
-        const userMessageText = input
+        const userMessageText = messageToSend
         const newUserMessage = {
             sender: 'user',
             message: userMessageText,
@@ -238,7 +299,7 @@ export default function EmployeeChat() {
         }
 
         setMessages(prev => [...prev, newUserMessage])
-        setInput('')
+        if (!forcedMessage) setInput('')
 
         try {
             const chatUrl = `https://ig.gov-cloud.ai/ai-coach-agents/coach/chat?employeeId=${selectedEmployee}&message=${encodeURIComponent(userMessageText)}`
@@ -253,9 +314,21 @@ export default function EmployeeChat() {
             const data = await response.json()
             const aiMessage = data?.reply?.replyText || (typeof data === 'string' ? data : (data.message || "I'm sorry, I couldn't process that."))
 
+            // Only suggest videos if keywords related to coaching frameworks are present
+            const frameworks = [
+                'grow', 'sbi', 'oscar', 'clear', 'star', 'aid', 'fuel', 'woop', 'smart',
+                'feedback', 'delegation', 'leadership', 'coaching', 'mentoring',
+                'accountability', 'empowerment', 'communication', 'impact'
+            ];
+            const shouldSuggestVideo = frameworks.some(f => userMessageText.toLowerCase().includes(f));
+
             const aiResponse = {
                 sender: 'ai',
                 message: aiMessage,
+                video: null,
+                videoOffered: false,
+                showVideoSuggestion: shouldSuggestVideo,
+                queryForVideo: userMessageText,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
             setMessages(prev => [...prev, aiResponse])
@@ -270,6 +343,14 @@ export default function EmployeeChat() {
             setMessages(prev => [...prev, errorResponse])
         }
     }
+
+    // Handle auto-message from Content Feed
+    useEffect(() => {
+        if (location.state?.autoMessage && !autoSentRef.current && selectedEmployee) {
+            autoSentRef.current = true
+            handleSend(location.state.autoMessage)
+        }
+    }, [location.state, selectedEmployee])
 
     return (
         <div>
@@ -336,8 +417,6 @@ export default function EmployeeChat() {
                                                         const name = `${emp.first_name} ${emp.last_name}`
                                                         setSelectedEmployee(emp.employee_id)
                                                         setSelectedEmployeeName(name)
-                                                        localStorage.setItem('active_employee_id', emp.employee_id)
-                                                        localStorage.setItem('active_employee_name', name)
                                                         setIsDropdownOpen(false)
                                                     }}
                                                 >
@@ -394,6 +473,65 @@ export default function EmployeeChat() {
                                     </button>
                                 )}
                                 <FormattedMessage text={msg.message} isUser={msg.sender === 'user'} />
+
+                                {msg.videos && msg.videos.length > 0 && (
+                                    <div className="mt-4 -mx-1">
+                                        <div className="flex gap-3 overflow-x-auto pb-3 px-1 no-scrollbar snap-x snap-mandatory">
+                                            {msg.videos.map((vid, vidIdx) => (
+                                                <div key={vidIdx} className="min-w-[240px] w-[240px] flex-shrink-0 snap-start bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-all">
+                                                    <div className="relative pt-[56.25%]">
+                                                        <iframe
+                                                            className="absolute top-0 left-0 w-full h-full"
+                                                            src={`https://www.youtube.com/embed/${vid.id.videoId}`}
+                                                            title={vid.snippet.title}
+                                                            frameBorder="0"
+                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                            allowFullScreen
+                                                        ></iframe>
+                                                    </div>
+                                                    <div className="p-3 bg-gray-50/50">
+                                                        <h3 className="line-clamp-2 text-[11px] font-bold text-gray-800 leading-tight mb-1 h-8">
+                                                            {vid.snippet.title}
+                                                        </h3>
+                                                        <p className="text-[10px] text-gray-500 font-medium">
+                                                            {vid.snippet.channelTitle}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 justify-center mt-1">
+                                            {msg.videos.map((_, dotIdx) => (
+                                                <div key={dotIdx} className="w-1 h-1 rounded-full bg-gray-200"></div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {msg.sender === 'ai' && (!msg.videos || msg.videos.length === 0) && msg.showVideoSuggestion && (
+                                    <div className="mt-4 pt-3 border-t border-gray-100">
+                                        <button
+                                            onClick={() => handleFetchVideo(i, msg.queryForVideo)}
+                                            disabled={msg.isLoadingVideo}
+                                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary-blue/5 hover:bg-primary-blue/10 border border-primary-blue/10 rounded-xl text-[11px] font-bold text-primary-blue transition-all disabled:opacity-50"
+                                        >
+                                            {msg.isLoadingVideo ? (
+                                                <>
+                                                    <div className="w-3 h-3 border-2 border-primary-blue/30 border-t-primary-blue rounded-full animate-spin"></div>
+                                                    Finding relevant video...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <i className="fas fa-play-circle text-xs"></i>
+                                                    View Related Coaching Video
+                                                </>
+                                            )}
+                                        </button>
+                                        <p className="text-[9px] text-gray-400 mt-2 text-center font-medium italic">
+                                            Click to explore supporting resources for this topic
+                                        </p>
+                                    </div>
+                                )}
                                 <span className={`text-[9px] mt-2 block font-bold uppercase tracking-tighter ${msg.sender === 'user' ? 'text-white/60' : 'text-gray-400'}`}>
                                     {msg.timestamp}
                                 </span>
@@ -429,7 +567,7 @@ export default function EmployeeChat() {
                             </button>
                         </div>
                         <button
-                            onClick={handleSend}
+                            onClick={() => handleSend()}
                             className="bg-primary-blue text-white border-none px-5 py-2.5 rounded-xl text-xs font-bold cursor-pointer flex items-center gap-2 hover:bg-primary-dark transition-all shadow-sm shadow-primary-blue/20"
                         >
                             <i className="fas fa-paper-plane"></i> Send

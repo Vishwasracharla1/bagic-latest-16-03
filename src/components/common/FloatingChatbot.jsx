@@ -10,11 +10,11 @@ export default function FloatingChatbot() {
     const location = useLocation()
     const [isOpen, setIsOpen] = useState(false)
     const role = localStorage.getItem('user_role')
-    
+
     // Admin/User states
     const [employees, setEmployees] = useState([])
-    const [selectedEmployee, setSelectedEmployee] = useState(localStorage.getItem('active_employee_id') || localStorage.getItem('user_id') || '')
-    const [selectedEmployeeName, setSelectedEmployeeName] = useState(localStorage.getItem('active_employee_name') || 'Select Employee...')
+    const [selectedEmployee, setSelectedEmployee] = useState(localStorage.getItem('user_id') || '')
+    const [selectedEmployeeName, setSelectedEmployeeName] = useState(localStorage.getItem('user_name') || 'Select Employee...')
     const [isIdDropdownOpen, setIsIdDropdownOpen] = useState(false)
     const [isLoadingEmployees, setIsLoadingEmployees] = useState(false)
 
@@ -59,7 +59,7 @@ export default function FloatingChatbot() {
                 },
                 body: JSON.stringify({
                     "dbType": "TIDB",
-                    "distinctColumns": ["employee_id","first_name","last_name"]
+                    "distinctColumns": ["employee_id", "first_name", "last_name"]
                 })
             })
             const data = await response.json()
@@ -85,7 +85,7 @@ export default function FloatingChatbot() {
 
     const formatMessage = (text) => {
         if (typeof text !== 'string') return text;
-        
+
         // Regex for bold text and special IDs
         const inlineRegex = /(\*\*.*?\*\*|(?:S-|RE-|BAJ)\d+)/g;
 
@@ -93,12 +93,12 @@ export default function FloatingChatbot() {
             const parts = content.split(inlineRegex);
             return parts.map((part, i) => {
                 if (!part) return null;
-                
+
                 // Handle Bold
                 if (part.startsWith('**') && part.endsWith('**')) {
                     return <strong key={i} className="font-bold text-gray-950">{part.slice(2, -2)}</strong>;
                 }
-                
+
                 // Handle IDs
                 if (/^S-\d+$/.test(part)) {
                     return (
@@ -124,13 +124,13 @@ export default function FloatingChatbot() {
                         </span>
                     );
                 }
-                
+
                 return part;
             });
         };
 
         const lines = text.split('\n');
-        
+
         return (
             <div className="space-y-2">
                 {lines.map((line, idx) => {
@@ -176,7 +176,7 @@ export default function FloatingChatbot() {
         if (!input.trim()) return
 
         // Always fetch the freshest ID from storage to stay in sync with the platform's persona switchers
-        const currentContextId = localStorage.getItem('active_employee_id') || localStorage.getItem('user_id') || selectedEmployee;
+        const currentContextId = localStorage.getItem('user_id') || selectedEmployee;
 
         let finalQuestion = input;
         if (currentContextId) {
@@ -213,7 +213,7 @@ export default function FloatingChatbot() {
                 message: aiReplyText,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
-            
+
             setTimeout(() => {
                 setMessages(prev => [...prev, aiResponse])
                 setIsTyping(false)
@@ -257,7 +257,7 @@ export default function FloatingChatbot() {
                                     </div>
                                 </div>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setIsOpen(false)}
                                 className="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center transition-all"
                             >
@@ -268,7 +268,7 @@ export default function FloatingChatbot() {
                         {/* Admin Dropdown - Only show outside of employee persona */}
                         {role === 'admin' && !location.pathname.includes('/employee') && (
                             <div className="relative z-20">
-                                <button 
+                                <button
                                     onClick={() => setIsIdDropdownOpen(!isIdDropdownOpen)}
                                     className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-3 py-1.5 flex items-center justify-between text-[11px] font-bold hover:bg-white/20 transition-all text-white/90"
                                 >
@@ -283,7 +283,7 @@ export default function FloatingChatbot() {
                                 {isIdDropdownOpen && (
                                     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[300px] animate-in fade-in zoom-in-95 duration-200">
                                         <div className="p-2 sticky top-0 bg-white border-b border-gray-50">
-                                            <input 
+                                            <input
                                                 type="text"
                                                 placeholder="Search employee..."
                                                 className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5 text-xs text-gray-800 outline-none focus:ring-2 focus:ring-primary-blue/20"
@@ -318,8 +318,6 @@ export default function FloatingChatbot() {
                                                             const name = `${emp.first_name} ${emp.last_name}`
                                                             setSelectedEmployee(emp.employee_id)
                                                             setSelectedEmployeeName(name)
-                                                            localStorage.setItem('active_employee_id', emp.employee_id)
-                                                            localStorage.setItem('active_employee_name', name)
                                                             setIsIdDropdownOpen(false)
                                                         }}
                                                     >
@@ -352,11 +350,10 @@ export default function FloatingChatbot() {
                                         <i className="fas fa-robot"></i>
                                     </div>
                                 )}
-                                <div className={`max-w-[85%] p-3.5 rounded-2xl text-[13px] font-medium leading-relaxed shadow-sm transition-all hover:shadow-md ${
-                                    msg.sender === 'user' 
-                                        ? 'bg-primary-blue text-white rounded-br-none shadow-primary-blue/10' 
+                                <div className={`max-w-[85%] p-3.5 rounded-2xl text-[13px] font-medium leading-relaxed shadow-sm transition-all hover:shadow-md ${msg.sender === 'user'
+                                        ? 'bg-primary-blue text-white rounded-br-none shadow-primary-blue/10'
                                         : 'bg-white text-gray-800 border border-gray-100/50 rounded-bl-none'
-                                }`}>
+                                    }`}>
                                     {msg.sender === 'ai' ? formatMessage(msg.message) : msg.message}
                                     <div className={`text-[9px] mt-2 opacity-40 font-bold uppercase tracking-tighter ${msg.sender === 'user' ? 'text-right text-white' : 'text-left text-gray-500'}`}>
                                         {msg.timestamp}
@@ -393,7 +390,7 @@ export default function FloatingChatbot() {
                                 placeholder="Type your message..."
                                 className="flex-1 bg-gray-50 border border-transparent rounded-xl px-4 py-2.5 text-sm outline-none focus:bg-white focus:border-primary-blue/30 focus:ring-4 focus:ring-primary-blue/5 transition-all"
                             />
-                            <button 
+                            <button
                                 onClick={handleSend}
                                 className="w-10 h-10 bg-primary-blue text-white rounded-xl shadow-lg shadow-primary-blue/20 flex items-center justify-center hover:bg-primary-dark transition-all transform active:scale-95"
                             >
@@ -407,11 +404,10 @@ export default function FloatingChatbot() {
             {/* Toggle Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-90 ${
-                    isOpen 
-                        ? 'bg-gray-800 text-white rotate-90' 
+                className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-90 ${isOpen
+                        ? 'bg-gray-800 text-white rotate-90'
                         : 'bg-primary-blue text-white'
-                }`}
+                    }`}
             >
                 {isOpen ? (
                     <i className="fas fa-times text-xl"></i>

@@ -48,7 +48,7 @@ export default function EmployeeContent() {
                 if (recommendedIds.length > 0) {
                     // Extract IDs from 'content_items_C-XXX' format to ['C-XXX', ...]
                     const cleanIdList = recommendedIds.map(id => id.replace('content_items_', ''));
-                    
+
                     const response = await fetch('https://igs.gov-cloud.ai/pi-entity-instances-service/v2.0/schemas/69a81b1242abf6674cbcb8f1/instances/list?size=1000', {
                         method: 'POST',
                         headers: {
@@ -154,14 +154,17 @@ export default function EmployeeContent() {
                         }
 
                         setAllEmployees(employeeList || []);
-                        
+
                         // Auto-select first employee if admin and none selected
                         if (employeeList.length > 0) {
                             const currentId = localStorage.getItem('active_employee_id');
                             const currentEmp = employeeList.find(e => e.employee_id === currentId) || employeeList[0];
-                            
+
                             setActiveEmployeeId(currentEmp.employee_id);
-                            setSelectedEmployeeName(`${currentEmp.first_name} ${currentEmp.last_name}`);
+                            const name = `${currentEmp.first_name} ${currentEmp.last_name}`;
+                            setSelectedEmployeeName(name);
+                            localStorage.setItem('active_employee_id', currentEmp.employee_id);
+                            localStorage.setItem('active_employee_name', name);
                         }
                     }
                 } catch (err) {
@@ -274,7 +277,7 @@ export default function EmployeeContent() {
                                 </div>
                                 <div className="p-4 flex-1 flex flex-col">
                                     <h3 className="text-sm font-bold text-gray-800 mb-2 leading-snug group-hover:text-primary-blue transition-colors line-clamp-1">{content.title}</h3>
-                                    
+
                                     <div className="flex items-center gap-3 mb-4 mt-4">
                                         <div className="flex-1 flex items-center gap-2">
                                             <div className="flex-1 bg-gray-50 rounded-full h-1 border border-gray-100 overflow-hidden">
@@ -301,8 +304,8 @@ export default function EmployeeContent() {
                                     </div>
 
                                     <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => navigate('/employee/chat')}
+                                        <button
+                                            onClick={() => navigate('/employee/chat', { state: { autoMessage: content.title } })}
                                             className={`flex-1 ${content.action_label === 'COMPLETED' ? 'bg-gray-400' : 'bg-primary-blue'} text-white border-none py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:opacity-90 transition-all shadow-sm`}
                                         >
                                             {content.action_label}

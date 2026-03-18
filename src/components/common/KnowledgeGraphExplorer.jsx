@@ -7,22 +7,22 @@ cytoscape.use(coseBilkent);
 
 // ─── Colours & Config (Premium Style) ──────────────────────────────────────────
 const TYPE_COLORS = {
-    "hub":                      { color: "#1e293b", border: "#0f172a", size: 52 }, // Deep Navy
-    "node":                     { color: "#94a3b8", border: "#64748b", size: 30 }, // Slate
-    "cohort memberships":       { color: "#6366f1", border: "#4338ca", size: 34 }, // Indigo
-    "content items":            { color: "#8b5cf6", border: "#6d28d9", size: 34 }, // Violet
-    "content usage":            { color: "#0ea5e9", border: "#0369a1", size: 32 }, // Sky Blue (Replaced Pink)
-    "employee org membership":  { color: "#64748b", border: "#334155", size: 32 }, // Slate Grey
-    "employees":                { color: "#3b82f6", border: "#1d4ed8", size: 34 }, // Blue
-    "goals":                    { color: "#10b981", border: "#047857", size: 34 }, // Emerald
-    "nudges":                   { color: "#ef4444", border: "#b91c1c", size: 32 }, // Red (Replaced Rose)
-    "reasoning events":         { color: "#f97316", border: "#c2410c", size: 34 }, // Orange
-    "sessions":                 { color: "#f59e0b", border: "#d97706", size: 32 }, // Amber
-    "org units":                { color: "#14b8a6", border: "#0f766e", size: 34 }, // Teal
-    "programs":                 { color: "#84cc16", border: "#4d7c0f", size: 34 }, // Lime (Replaced Fuchsia)
-    "employee":                 { color: "#06b6d4", border: "#0891b2", size: 34 }, // Cyan
-    "session":                  { color: "#f59e0b", border: "#d97706", size: 32 }, // Amber
-    "nudge":                    { color: "#ef4444", border: "#b91c1c", size: 32 }, // Red (Replaced Rose)
+    "hub": { color: "#1e293b", border: "#0f172a", size: 52 }, // Deep Navy
+    "node": { color: "#94a3b8", border: "#64748b", size: 30 }, // Slate
+    "cohort memberships": { color: "#6366f1", border: "#4338ca", size: 34 }, // Indigo
+    "content items": { color: "#8b5cf6", border: "#6d28d9", size: 34 }, // Violet
+    "content usage": { color: "#0ea5e9", border: "#0369a1", size: 32 }, // Sky Blue (Replaced Pink)
+    "employee org membership": { color: "#64748b", border: "#334155", size: 32 }, // Slate Grey
+    "employees": { color: "#3b82f6", border: "#1d4ed8", size: 34 }, // Blue
+    "goals": { color: "#10b981", border: "#047857", size: 34 }, // Emerald
+    "nudges": { color: "#ef4444", border: "#b91c1c", size: 32 }, // Red (Replaced Rose)
+    "reasoning events": { color: "#f97316", border: "#c2410c", size: 34 }, // Orange
+    "sessions": { color: "#f59e0b", border: "#d97706", size: 32 }, // Amber
+    "org units": { color: "#14b8a6", border: "#0f766e", size: 34 }, // Teal
+    "programs": { color: "#84cc16", border: "#4d7c0f", size: 34 }, // Lime (Replaced Fuchsia)
+    "employee": { color: "#06b6d4", border: "#0891b2", size: 34 }, // Cyan
+    "session": { color: "#f59e0b", border: "#d97706", size: 32 }, // Amber
+    "nudge": { color: "#ef4444", border: "#b91c1c", size: 32 }, // Red (Replaced Rose)
 };
 
 const getCfg = (type) => {
@@ -59,7 +59,7 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
                 return JSON.parse(clean);
             })
             .then(raw => {
-                const totalTarget = 650; 
+                const totalTarget = 650;
                 const nodesByType = {};
                 (raw.nodes || []).forEach(n => {
                     if (!nodesByType[n.type]) nodesByType[n.type] = [];
@@ -111,9 +111,14 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
         // 3. Individual nodes when a category is expanded
         expandedTypes.forEach(et => {
             graphData.nodes.filter(n => n.type === et).forEach(n => {
-                const fullName = String(n.data?.name || n.data?.employee_id || n.id);
-                const lbl = fullName.length > 35 ? fullName.slice(0, 32) + '...' : fullName;
-                els.push({ data: { id: n.id, label: lbl, type: n.type, isCluster: 0, rawData: n.data } });
+                const rawName = String(n.data?.name || n.data?.employee_id || n.id);
+                // Clean technical IDs (e.g., content_items_C-004 -> C-004)
+                const fullName = rawName.includes('_') && /^[a-z_]+_[A-Z0-9-]+$/.test(rawName)
+                    ? rawName.split('_').pop()
+                    : rawName.replace(/_/g, ' ');
+
+                const lbl = fullName.length > 25 ? fullName.slice(0, 22) + '...' : fullName;
+                els.push({ data: { id: n.id, label: lbl.toUpperCase(), type: n.type, isCluster: 0, rawData: n.data } });
 
                 // Connect individual node to its cluster
                 els.push({
@@ -152,12 +157,12 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
                     cy.elements().remove();
                     cy.add(elements);
                 });
-                
+
                 cy.layout({
                     name: 'cose-bilkent',
                     animate: true,
                     randomize: false, // Prevents jumping
-                    fit: false, 
+                    fit: false,
                     padding: 50,
                     idealEdgeLength: 200,
                     nodeRepulsion: 8000,
@@ -168,7 +173,7 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
                     tile: true,
                     animationDuration: 1000
                 }).run();
-                
+
                 setTimeout(() => { if (!cy.destroyed()) cy.resize(); }, 50);
             } catch (err) {
                 console.error("Cytoscape update failed, re-initializing:", err);
@@ -191,16 +196,16 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
                         'label': 'data(label)',
                         'color': '#fff',
                         'font-family': 'Inter, sans-serif',
-                        'font-weight': 700,
-                        'font-size': '9px',
+                        'font-weight': 800,
+                        'font-size': '8px',
                         'text-valign': 'center',
                         'text-halign': 'center',
                         'text-outline-width': 1,
                         'text-outline-color': n => getCfg(n.data('type')).border,
-                        'width': n => n.data('isCluster') ? 120 : 85,
-                        'height': n => n.data('isCluster') ? 120 : 85,
+                        'width': n => n.data('isCluster') ? 110 : 70,
+                        'height': n => n.data('isCluster') ? 110 : 70,
                         'text-wrap': 'wrap',
-                        'text-max-width': '75px',
+                        'text-max-width': '60px',
                         'overlay-padding': 6,
                         'overlay-opacity': 0,
                         'ghost': 'yes',
@@ -213,9 +218,9 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
                     selector: 'node[isCluster = 1]',
                     style: {
                         label: n => `${n.data('label').toUpperCase()}\n(${n.data('count')})`,
-                        'width': 130, 'height': 130,
-                        'font-size': '11px',
-                        'border-width': 4
+                        'width': 120, 'height': 120,
+                        'font-size': '10px',
+                        'border-width': 3
                     }
                 },
                 {
@@ -322,7 +327,7 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
         });
         if (containerRef.current) resizeObserver.observe(containerRef.current);
 
-        return () => { 
+        return () => {
             if (cyRef.current) cyRef.current.destroy();
             resizeObserver.disconnect();
         };
@@ -363,14 +368,15 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
     return (
         <div style={{ width: '100%', height: 'calc(100vh - 220px)', minHeight: '500px', display: 'flex', flexDirection: 'column', background: '#f8fafc', fontFamily: "'Inter', sans-serif", overflow: 'hidden' }}>
 
-            <div style={{ background: '#fff', borderBottom: '1px solid #f1f5f9', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '15px', overflowX: 'auto', flexShrink: 0 }} className="kg-scroll">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'fit-content', paddingRight: '12px', borderRight: '1px solid #f1f5f9' }}>
-                    <span style={{ color: '#0f172a', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Categories</span>
+            <div style={{ background: '#fff', borderBottom: '1px solid #f1f5f9', padding: '16px 24px', display: 'flex', alignItems: 'flex-start', gap: '20px', flexShrink: 0 }} className="kg-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'fit-content', paddingTop: '6px' }}>
+                    <span style={{ color: '#0f172a', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.5 }}>Categories</span>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', minWidth: 'fit-content' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
                     {Object.entries(stats.types).sort(([, a], [, b]) => b - a).map(([type, count]) => (
                         <div
                             key={type}
+                            className="category-tag"
                             onClick={() => setExpandedTypes(prev => { const n = new Set(prev); n.has(type) ? n.delete(type) : n.add(type); return n; })}
                             onMouseEnter={() => setHighlightType(type)}
                             onMouseLeave={() => setHighlightType(null)}
@@ -405,10 +411,10 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
 
                 {/* Floating Hover Card */}
                 {hoveredNode && (
-                    <div 
-                        style={{ 
-                            position: 'fixed', 
-                            left: `${hoveredNode.x + 20}px`, 
+                    <div
+                        style={{
+                            position: 'fixed',
+                            left: `${hoveredNode.x + 20}px`,
                             top: hoveredNode.y > window.innerHeight - 320 ? 'auto' : `${hoveredNode.y + 10}px`,
                             bottom: hoveredNode.y > window.innerHeight - 320 ? `${window.innerHeight - hoveredNode.y + 10}px` : 'auto',
                             zIndex: 1000,
@@ -432,7 +438,7 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
                         <h4 style={{ color: '#0f172a', fontSize: '14px', fontWeight: 800, margin: '0 0 12px 0' }}>
                             {hoveredNode.isEdge ? 'Relation Details' : (hoveredNode.data.name || hoveredNode.id)}
                         </h4>
-                        
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {Object.entries(hoveredNode.data).slice(0, 6).map(([k, v]) => (
                                 <div key={k} style={{ borderTop: '1px solid #f1f5f9', paddingTop: '6px' }}>
@@ -455,10 +461,16 @@ const KnowledgeGraphExplorer = ({ searchQuery: externalSearchQuery, onStatsUpdat
             <style>{`
                 @keyframes spin { 100% { transform: rotate(360deg); } }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-                .kg-scroll::-webkit-scrollbar { height: 2px; width: 2px; }
-                .kg-scroll::-webkit-scrollbar-track { background: transparent; }
-                .kg-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-                .kg-scroll::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+                .kg-header { 
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+                }
+                .category-tag {
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .category-tag:hover {
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+                }
                 .zoom-btn { width:32px; height:32px; border-radius:7px; border:1px solid #e2e8f0; background:#fff; font-size:16px; font-weight:700; color:#475569; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,0.08); transition:all 0.12s; }
                 .zoom-btn:hover { background:#f1f5f9; color:#1e293b; }
             `}</style>

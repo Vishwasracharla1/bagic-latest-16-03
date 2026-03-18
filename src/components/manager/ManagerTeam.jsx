@@ -23,7 +23,7 @@ export default function ManagerTeam() {
             setIsLoading(true);
             try {
                 const token = import.meta.env.VITE_COHORTS_AUTH_TOKEN;
-                
+
                 // Fetch Stats
                 const statsRes = await fetch('https://ig.gov-cloud.ai/pi-cohorts-service-dbaas/v1.0/cohorts/adhoc', {
                     method: 'POST',
@@ -303,7 +303,7 @@ export default function ManagerTeam() {
                                             )}
                                         </div>
                                     )}
-
+{/* 
                                     <div className="flex gap-2">
                                         <button className="flex-1 bg-primary-blue/5 text-primary-blue border border-primary-blue/10 py-1.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-primary-blue hover:text-white transition-all uppercase tracking-wider">
                                             View Analytics
@@ -311,7 +311,7 @@ export default function ManagerTeam() {
                                         <button className="flex-1 bg-gray-50 text-gray-500 border border-gray-100 py-1.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-gray-100 hover:text-gray-700 transition-all uppercase tracking-wider">
                                             Prep Session
                                         </button>
-                                    </div>
+                                    </div> */}
                                 </div>
                             </div>
                         ))

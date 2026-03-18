@@ -242,7 +242,7 @@ export default function ManagerAnalytics() {
                 barWidth: '60%',
                 barGap: '-100%',
                 itemStyle: {
-                    color: values[idx] >= 70 ? '#4CAF50' : values[idx] >= 40 ? '#FFC107' : '#F44336',
+                    color: palette[idx % palette.length],
                     borderRadius: [0, 4, 4, 0]
                 },
                 label: {
@@ -499,7 +499,7 @@ export default function ManagerAnalytics() {
                     const icon = iconMap[topic.primary_topic] || iconMap.default;
                     const label = labelMap[topic.primary_topic] || topic.primary_topic.replace('_', ' ');
                     const improvement = topic.improvement_pct || 0;
-                    
+
                     const displayValue = (
                         <div className="flex items-center gap-1">
                             <i className={`fas fa-arrow-${improvement >= 0 ? 'up text-success' : 'down text-danger'} text-xs`}></i>
