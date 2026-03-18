@@ -3,21 +3,18 @@ import { useLocation } from 'react-router-dom'
 import { MOCK_DATA } from '../../data/mockData'
 
 export default function EmployeeChat() {
-    const [messages, setMessages] = useState(() => {
-        const saved = sessionStorage.getItem('ai_coach_messages')
-        return saved ? JSON.parse(saved) : []
-    })
+    const [messages, setMessages] = useState([])
     const [input, setInput] = useState('')
     const [isListening, setIsListening] = useState(false)
     const [isSpeaking, setIsSpeaking] = useState(false)
     const [employees, setEmployees] = useState([])
-    const initialId = localStorage.getItem('active_employee_id') || localStorage.getItem('user_id') || ''
+    const role = localStorage.getItem('user_role')
+    const initialId = localStorage.getItem('active_employee_id') || (role !== 'admin' ? localStorage.getItem('user_id') : '')
     const [selectedEmployee, setSelectedEmployee] = useState(initialId)
-    const initialName = localStorage.getItem('active_employee_name') || localStorage.getItem('user_name') || ''
+    const initialName = localStorage.getItem('active_employee_name') || (role !== 'admin' ? localStorage.getItem('user_name') : '')
     const [selectedEmployeeName, setSelectedEmployeeName] = useState(initialName)
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
     const [isLoadingEmployees, setIsLoadingEmployees] = useState(false)
-    const role = localStorage.getItem('user_role')
     const chatEndRef = useRef(null)
     const location = useLocation()
     const autoSentRef = useRef(false)
@@ -44,16 +41,14 @@ export default function EmployeeChat() {
         }
 
         document.addEventListener('visibilitychange', handleVisibilityChange)
-        
+
         return () => {
             window.speechSynthesis.cancel()
             document.removeEventListener('visibilitychange', handleVisibilityChange)
         }
     }, [])
 
-    // Persist messages to session storage
     useEffect(() => {
-        sessionStorage.setItem('ai_coach_messages', JSON.stringify(messages))
         scrollToBottom()
     }, [messages])
 
@@ -96,6 +91,10 @@ export default function EmployeeChat() {
 
                     setSelectedEmployee(currentEmp.employee_id);
                     setSelectedEmployeeName(`${currentEmp.first_name} ${currentEmp.last_name}`);
+                    
+                    // Persist for other components
+                    localStorage.setItem('active_employee_id', currentEmp.employee_id);
+                    localStorage.setItem('active_employee_name', `${currentEmp.first_name} ${currentEmp.last_name}`);
                 }
             }
         } catch (error) {
@@ -287,7 +286,7 @@ export default function EmployeeChat() {
     const handleSend = async (forcedMessage = null) => {
         const messageToSend = typeof forcedMessage === 'string' ? forcedMessage : input
         if (!messageToSend || typeof messageToSend !== 'string' || !messageToSend.trim()) return
-        if (!selectedEmployee) {
+        if (!selectedEmployee || selectedEmployee === 'admin') {
             alert("Please select an employee first")
             return
         }
@@ -418,8 +417,6 @@ export default function EmployeeChat() {
                                                         const name = `${emp.first_name} ${emp.last_name}`
                                                         setSelectedEmployee(emp.employee_id)
                                                         setSelectedEmployeeName(name)
-                                                        localStorage.setItem('active_employee_id', emp.employee_id)
-                                                        localStorage.setItem('active_employee_name', name)
                                                         setIsDropdownOpen(false)
                                                     }}
                                                 >

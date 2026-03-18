@@ -32,7 +32,7 @@ export default function EmployeeOverview() {
                 const apiUrl = import.meta.env.VITE_COHORTS_API_URL;
                 const token = import.meta.env.VITE_COHORTS_AUTH_TOKEN;
 
-                if (!apiUrl || !token){
+                if (!apiUrl || !token) {
                     console.warn("Cohorts API URL or Token not found in environment variables.");
                     return;
                 }
@@ -173,7 +173,7 @@ export default function EmployeeOverview() {
                 if (recommendedIds.length > 0) {
                     // Extract IDs from 'content_items_C-XXX' format to ['C-XXX', ...]
                     const cleanIdList = recommendedIds.map(id => id.replace('content_items_', ''));
-                    
+
                     const learningResponse = await fetch('https://igs.gov-cloud.ai/pi-entity-instances-service/v2.0/schemas/69a81b1242abf6674cbcb8f1/instances/list?size=1000', {
                         method: 'POST',
                         headers: {
@@ -300,12 +300,12 @@ export default function EmployeeOverview() {
                         }
 
                         setAllEmployees(employeeList || []);
-                        
+
                         // Auto-select first employee if admin and list is not empty
                         if (employeeList && employeeList.length > 0) {
                             const currentId = localStorage.getItem('active_employee_id');
                             const currentEmp = employeeList.find(e => e.employee_id === currentId) || employeeList[0];
-                            
+
                             setActiveEmployeeId(currentEmp.employee_id);
                             setSelectedEmployeeName(`${currentEmp.first_name} ${currentEmp.last_name}`);
                         }
@@ -422,7 +422,7 @@ export default function EmployeeOverview() {
                             <h2 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
                                 <i className="fas fa-bullseye text-primary-blue text-[10px]"></i> Active Progress
                             </h2>
-                      
+
                         </div>
                         <div className="p-4 space-y-4">
                             {activeGoals.length > 0 ? (
@@ -468,8 +468,8 @@ export default function EmployeeOverview() {
                         <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                             {learningRecommendations.length > 0 ? (
                                 learningRecommendations.map((content, idx) => (
-                                    <div 
-                                        key={idx} 
+                                    <div
+                                        key={idx}
                                         onClick={() => navigate('/employee/chat')}
                                         className="bg-gray-50/30 border border-gray-100 rounded-xl p-3 hover:border-primary-blue/30 transition-all group cursor-pointer"
                                     >
@@ -539,16 +539,14 @@ export default function EmployeeOverview() {
                             {nudges.length > 0 ? (
                                 nudges.map((nudge, i) => (
                                     <div key={nudge.nudge_id || i} className={`flex items-start gap-3 p-2.5 rounded-xl border transition-all hover:bg-gray-50/50 ${nudge.ui_badge === 'URGENT' ? 'bg-danger/5 border-danger/10' : 'bg-transparent border-transparent'}`}>
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0 ${
-                                            nudge.nudge_type?.toLowerCase() === 'reminder' ? 'bg-blue-100 text-blue-600' :
-                                            nudge.nudge_type?.toLowerCase() === 'celebration' ? 'bg-amber-100 text-amber-600' :
-                                            'bg-emerald-100 text-emerald-600'
-                                        }`}>
-                                            <i className={`fas fa-${
-                                                nudge.nudge_type?.toLowerCase() === 'reminder' ? 'bolt' :
-                                                nudge.nudge_type?.toLowerCase() === 'celebration' ? 'trophy' :
-                                                'lightbulb'
-                                            } text-xs`}></i>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0 ${nudge.nudge_type?.toLowerCase() === 'reminder' ? 'bg-blue-100 text-blue-600' :
+                                                nudge.nudge_type?.toLowerCase() === 'celebration' ? 'bg-amber-100 text-amber-600' :
+                                                    'bg-emerald-100 text-emerald-600'
+                                            }`}>
+                                            <i className={`fas fa-${nudge.nudge_type?.toLowerCase() === 'reminder' ? 'bolt' :
+                                                    nudge.nudge_type?.toLowerCase() === 'celebration' ? 'trophy' :
+                                                        'lightbulb'
+                                                } text-xs`}></i>
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex justify-between items-start">

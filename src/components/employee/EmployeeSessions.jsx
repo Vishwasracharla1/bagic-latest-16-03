@@ -83,12 +83,12 @@ export default function EmployeeSessions() {
                         }
 
                         setAllEmployees(employeeList || []);
-                        
+
                         // Auto-select first employee if admin and none selected
                         if (employeeList.length > 0) {
                             const currentId = localStorage.getItem('active_employee_id') || 'BAJ00004';
                             const currentEmp = employeeList.find(e => e.employee_id === currentId) || employeeList[0];
-                            
+
                             setActiveEmployeeId(currentEmp.employee_id);
                             setSelectedEmployeeName(`${currentEmp.first_name} ${currentEmp.last_name}`);
                         }
@@ -229,7 +229,7 @@ export default function EmployeeSessions() {
                                             </p>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="flex items-center justify-between pt-4 border-t border-gray-50 mt-auto">
                                         <div className="flex gap-2">
                                             <button className="bg-primary-blue text-white border-none px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:bg-primary-dark transition-all shadow-sm">
